@@ -5,6 +5,21 @@ from django.conf import settings
 from django.db import models
 
 
+class GoogleCalendarConnection(models.Model):
+    """Encrypted OAuth credentials for one athlete's Google Calendar."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="google_calendar_connection"
+    )
+    encrypted_credentials = models.TextField()
+    calendar_id = models.CharField(max_length=255, default="primary")
+    connected_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Google Calendar for {self.user.username}"
+
+
 class ScheduledSession(models.Model):
     """One planned session on an athlete's calendar.
 
@@ -47,6 +62,8 @@ class ScheduledSession(models.Model):
     status = models.CharField(max_length=12, choices=Status.choices, default=Status.SCHEDULED)
     order = models.PositiveSmallIntegerField(default=0)
     notes = models.TextField(blank=True)
+    google_event_id = models.CharField(max_length=255, blank=True)
+    google_synced_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

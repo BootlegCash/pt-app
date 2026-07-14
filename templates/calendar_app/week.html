@@ -13,6 +13,24 @@
   </div>
 </div>
 
+{% if not manage and google_calendar_configured %}
+<section class="card calendar-google-card">
+  <div>
+    <p class="eyebrow">Google Calendar</p>
+    <h2>{% if google_calendar_connected %}Calendar connected{% else %}Keep workouts in your calendar{% endif %}</h2>
+    <p class="muted">{% if google_calendar_connected %}Upcoming workout sessions can be synced to your personal Google Calendar.{% else %}Connect your personal Google Calendar to add upcoming workout sessions as all-day events.{% endif %}</p>
+  </div>
+  <div class="calendar-google-actions">
+    {% if google_calendar_connected %}
+      <form method="post" action="{% url 'calendar_app:google_sync' %}">{% csrf_token %}<button class="btn" type="submit">Sync upcoming workouts</button></form>
+      <form method="post" action="{% url 'calendar_app:google_disconnect' %}">{% csrf_token %}<button class="btn btn-ghost" type="submit">Disconnect</button></form>
+    {% else %}
+      <a class="btn" href="{% url 'calendar_app:google_connect' %}">Connect Google Calendar</a>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
 <div class="card">
   <div class="spread">
     {% if manage %}

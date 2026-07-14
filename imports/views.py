@@ -247,6 +247,62 @@ def download_import_file(request, job_uuid):
     return response
 
 
+# ------------------------------------------------------- coach file management
+
+@login_required
+def client_files(request, client_uuid):
+    """Coach/admin view of one client's uploads (spreadsheets + PDFs)."""
+    from core.services.access import get_client_or_404
+
+    # This screen includes private coach notes, so the athlete's normal
+    # self-view permission is intentionally not sufficient.
+    client = get_client_or_404(request.user, client_uuid, manage=True)
+    return render(request, "imports/client_files.html", {
+        "client": client,
+        "jobs": ImportJob.objects.filter(user=client),
+        "pdfs": ReferenceFile.objects.filter(user=client),
+    })
+
+
+class ReferenceFileForm(forms.ModelForm):
+    class Meta:
+        model = ReferenceFile
+        fields = ["coach_notes", "program"]
+        widgets = {"coach_notes": forms.Textarea(attrs={"rows": 3})}
+
+    def __init__(self, *args, athlete=None, coach=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        from django.db.models import Q
+
+        from programs.models import Program
+
+        self.fields["program"].queryset = Program.objects.filter(
+            Q(assigned_to=athlete)
+            | Q(owner=coach, assigned_to__isnull=True)
+        ).distinct()
+        self.fields["program"].required = False
+
+
+@login_required
+def pdf_edit(request, file_uuid):
+    """Coach attaches notes / links a PDF to a program. Clients cannot edit."""
+    from core.services.access import get_client_or_404
+
+    reference = get_object_or_404(ReferenceFile, uuid=file_uuid)
+    client = get_client_or_404(request.user, reference.user.uuid, manage=True)
+    form = ReferenceFileForm(
+        request.POST or None, instance=reference,
+        athlete=client, coach=request.user,
+    )
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "File notes saved.")
+        return redirect("imports:client_files", client_uuid=client.uuid)
+    return render(request, "imports/pdf_edit.html", {
+        "form": form, "reference": reference, "client": client,
+    })
+
+
 # ------------------------------------------------------------ coach approval
 
 def _require_review_access(user, job):

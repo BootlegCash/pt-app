@@ -1,0 +1,60 @@
+{# One logger set row. Context: row {number, log}, card, warmup (bool). #}
+<div class="set-row {% if warmup %}set-warmup{% endif %}"
+     data-set-number="{{ row.number }}" data-set-uuid="{{ row.log.uuid|default:'' }}"
+     {% if warmup %}data-warmup="1"{% endif %}>
+  <div class="setnum" title="{% if warmup %}Warm-up{% else %}Working{% endif %} set {{ row.number }}">
+    {% if warmup %}W{{ row.number }}{% else %}S{{ row.number }}{% endif %}
+  </div>
+  <input type="number" inputmode="decimal" step="0.5" min="0" data-field="weight"
+         value="{{ row.weight|default_if_none:'' }}"
+         aria-label="{% if warmup %}Warm-up{% else %}Working{% endif %} set {{ row.number }} weight (lb)">
+  {% if card.track_distance %}
+    <input type="number" inputmode="decimal" step="1" min="0" data-field="distance"
+           value="{{ row.log.distance_yards|default_if_none:'' }}"
+           aria-label="Set {{ row.number }} distance (yards)">
+    <input type="number" inputmode="numeric" min="0" data-field="duration"
+           value="{{ row.log.duration_seconds|default_if_none:'' }}"
+           aria-label="Set {{ row.number }} duration (seconds)">
+    <input type="hidden" data-field="reps" value="{{ row.log.reps|default_if_none:'' }}">
+    <input type="hidden" data-field="rir" value="{{ row.log.rir|default_if_none:'' }}">
+  {% else %}
+    <input type="number" inputmode="numeric" min="0" max="200" data-field="reps"
+           value="{{ row.log.reps|default_if_none:'' }}"
+           aria-label="{% if warmup %}Warm-up{% else %}Working{% endif %} set {{ row.number }} reps">
+    {% if card.prescription.target_rpe is not None %}
+      <input type="number" inputmode="decimal" step="0.5" min="0" max="10" data-field="rpe"
+             value="{{ row.log.rpe|default_if_none:'' }}"
+             aria-label="Set {{ row.number }} RPE" placeholder="RPE">
+      <input type="hidden" data-field="rir" value="{{ row.log.rir|default_if_none:'' }}">
+    {% else %}
+      <input type="number" inputmode="decimal" step="0.5" min="0" max="10" data-field="rir"
+             value="{{ row.log.rir|default_if_none:'' }}"
+             aria-label="Set {{ row.number }} RIR" placeholder="RIR">
+      <input type="hidden" data-field="rpe" value="{{ row.log.rpe|default_if_none:'' }}">
+    {% endif %}
+    <input type="hidden" data-field="distance" value="{{ row.log.distance_yards|default_if_none:'' }}">
+    <input type="hidden" data-field="duration" value="{{ row.log.duration_seconds|default_if_none:'' }}">
+  {% endif %}
+  <div class="set-check">
+    <input type="checkbox" data-field="completed" {% if row.log.completed %}checked{% endif %}
+           aria-label="{% if warmup %}Warm-up{% else %}Working{% endif %} set {{ row.number }} completed">
+  </div>
+  {% if card.track_distance %}
+    <input type="hidden" data-field="rpe" value="{{ row.log.rpe|default_if_none:'' }}">
+  {% endif %}
+  {% if warmup %}
+    <input type="text" data-field="notes" value="{{ row.log.notes|default:'' }}"
+           placeholder="Warm-up notes…" aria-label="Warm-up set {{ row.number }} notes"
+           style="grid-column: 1 / -1; min-height:36px; text-align:left" hidden>
+  {% else %}
+    <input type="text" data-field="notes" value="{{ row.log.notes|default:'' }}"
+           placeholder="Set notes…" aria-label="Set {{ row.number }} notes"
+           style="grid-column: 1 / 4; min-height:38px; text-align:left">
+    <label class="row faint" style="margin:0;font-size:.7rem;justify-content:center" title="Mark set as failed">
+      <input type="checkbox" data-field="failed" {% if row.log.failed %}checked{% endif %}
+             aria-label="Set {{ row.number }} failed"> fail
+    </label>
+    <button type="button" class="btn btn-sm btn-danger" data-remove-set
+            {% if not row.log.is_extra %}hidden{% endif %} aria-label="Remove extra set">✕</button>
+  {% endif %}
+</div>

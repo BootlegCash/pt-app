@@ -1,11 +1,13 @@
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 
 from core.services.dashboards import athlete_dashboard_context
 
 
 @login_required
 def dashboard(request):
+    if request.user.is_coach or request.user.is_staff:
+        return redirect("coaching:dashboard")
     context = athlete_dashboard_context(request.user)
     return render(request, "core/dashboard.html", context)
 

@@ -12,18 +12,28 @@ execution, performance, readiness, and feedback.**
   calendar, current program, mobile-first workout logger with autosave,
   workout/exercise history, progress charts (Chart.js), nutrition targets,
   supplements, private file uploads, data export, self-deactivation
+- Workout logger pre-fills coach-prescribed loads (including distinct working
+  set weights and percentage-of-max prescriptions) while preserving the
+  athlete's ability to record the actual load used
 - Coach pages: dashboard (adherence, pain flags, PRs, pending approvals),
   client detail hub, program builder (weeks/days/exercises/supersets/copying),
   calendar management, measurement & max entry, nutrition calculator
   (Mifflin-St Jeor / Katch-McArdle + configurable macro rules + overrides +
   weight-trend recommendations), supplement assignment, progression approvals,
   Excel-import approvals, private notes
+- Coach workspace: role-specific overview, client pulse cards, coaching alerts,
+  quick client actions, and relationship-scoped private notes
 - Progressive overload: double / fixed-load / percentage / rep / RIR-RPE /
   manual / performance-based. Recommendations are **never applied silently** —
   a coach approves, modifies, or rejects each one, and applied changes are audited
+- Percentage-based prescriptions resolve from the athlete's training max (with
+  tested/estimated-max fallbacks), while the logger keeps warm-up and working
+  sets distinct and records RIR or RPE exactly as prescribed
 - Excel (.xlsx/.csv) upload → worksheet choice → column mapping → parsed
   preview → coach approval → **draft** program (never overwrites a live program)
-- PDF reference uploads with page count, stored privately
+- PDF reference uploads with page count, stored privately; assigned coaches can
+  attach notes or link a file to an eligible client program without exposing
+  those private notes to the athlete
 - All private files served only through authenticated views; stored filenames
   are randomized; uploads validated by extension, magic bytes, and size
 - Audit trail for profile/measurement/max/program/nutrition/supplement/

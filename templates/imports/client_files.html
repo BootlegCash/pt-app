@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Files — {{ client.display_label }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Client files</h1><span class="muted">{{ client.display_label }}</span></div>
+  <a class="btn btn-sm" href="{% url 'coaching:client_detail' client.uuid %}">← Client</a>
+</div>
+
+<div class="card">
+  <h2>Spreadsheet imports</h2>
+  {% if jobs %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>File</th><th>Status</th><th>Uploaded</th><th></th></tr></thead>
+    <tbody>
+    {% for job in jobs %}
+    <tr>
+      <td>{{ job.original_filename }} <span class="muted">({{ job.file_size|filesizeformat }})</span></td>
+      <td><span class="badge {% if job.status == 'approved' or job.status == 'imported' %}badge-green{% elif job.status == 'rejected' or job.status == 'error' %}badge-red{% elif job.status == 'submitted' %}badge-yellow{% else %}badge-blue{% endif %}">{{ job.get_status_display }}</span></td>
+      <td class="muted">{{ job.created_at|date:"M j, Y" }}</td>
+      <td class="row">
+        <a class="btn btn-sm" href="{% url 'imports:job_detail' job.uuid %}">View</a>
+        {% if job.uploaded_file %}<a class="btn btn-sm" href="{% url 'imports:download_import_file' job.uuid %}">Download</a>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="muted mb-0">No spreadsheet uploads.</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Reference PDFs</h2>
+  {% if pdfs %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>File</th><th>Pages</th><th>Program</th><th>Coach notes</th><th></th></tr></thead>
+    <tbody>
+    {% for pdf in pdfs %}
+    <tr>
+      <td>{{ pdf.original_filename }}</td>
+      <td>{{ pdf.page_count|default:"—" }}</td>
+      <td class="muted">{{ pdf.program.name|default:"—" }}</td>
+      <td class="muted">{{ pdf.coach_notes|truncatechars:40 }}</td>
+      <td class="row">
+        <a class="btn btn-sm" href="{% url 'imports:download_pdf' pdf.uuid %}">Open</a>
+        <a class="btn btn-sm" href="{% url 'imports:pdf_edit' pdf.uuid %}">Notes</a>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="muted mb-0">No PDFs uploaded.</p>{% endif %}
+</div>
+{% endblock %}

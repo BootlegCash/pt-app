@@ -173,6 +173,11 @@ class WorkoutExercise(models.Model):
         help_text="Free-form target, e.g. AMRAP, 30 seconds, 20-40 yd.",
     )
     target_weight_lb = models.DecimalField(max_digits=6, decimal_places=1, null=True, blank=True)
+    set_weight_targets_lb = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Optional working-set weights in order, e.g. [290, 305].",
+    )
     target_percentage = models.DecimalField(
         max_digits=5, decimal_places=1, null=True, blank=True,
         help_text="Percent of training max.",

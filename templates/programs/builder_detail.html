@@ -66,7 +66,7 @@
           {% if we.optional %}<span class="badge">optional</span>{% endif %}
         </td>
         <td>{{ we.target_sets }}×{{ we.rep_target_display }}</td>
-        <td>{% if we.target_weight_lb %}{{ we.target_weight_lb }} lb{% elif we.target_percentage %}{{ we.target_percentage }}%{% else %}—{% endif %}</td>
+        <td>{% if we.set_weight_targets_lb %}{{ we.set_weight_targets_lb|join:" / " }} lb{% elif we.target_weight_lb %}{{ we.target_weight_lb }} lb{% elif we.target_percentage %}{{ we.target_percentage }}%{% else %}—{% endif %}</td>
         <td>{{ we.effort_display|default:"—" }}</td>
         <td class="muted">{{ we.get_progression_method_display|truncatechars:26 }}</td>
         <td>

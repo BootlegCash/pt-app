@@ -57,9 +57,17 @@ def start_session(request, scheduled_uuid):
     })
 
 
+DISTANCE_CATEGORIES = {"running", "conditioning"}
+
+
 @login_required
 def logger(request, session_uuid):
     """Mobile-first logging screen. Set data autosaves; refresh loses nothing."""
+    from programs.services.prescriptions import (
+        prescribed_weight_for_set,
+        resolve_prescribed_weight,
+    )
+
     session = get_object_or_404(
         WorkoutSession.objects.select_related(
             "workout_day__program_week__program", "scheduled_session"
@@ -79,17 +87,44 @@ def logger(request, session_uuid):
     cards = []
     for prescription in prescriptions:
         logs = existing_logs.get(prescription.id, [])
-        logged_numbers = {log.set_number for log in logs}
+        working = [log for log in logs if not log.is_warmup]
+        warmups = {log.set_number: log for log in logs if log.is_warmup}
+        logged_numbers = {log.set_number for log in working}
         planned = max(prescription.target_sets, max(logged_numbers, default=0))
+        by_number = {log.set_number: log for log in working}
         rows = []
-        by_number = {log.set_number: log for log in logs}
         for number in range(1, planned + 1):
-            rows.append({"number": number, "log": by_number.get(number)})
+            log = by_number.get(number)
+            weight = (
+                log.weight_lb
+                if log is not None and log.weight_lb is not None
+                else prescribed_weight_for_set(prescription, request.user, number)
+            )
+            rows.append({"number": number, "log": log, "weight": weight})
+        warmup_rows = [
+            {
+                "number": number,
+                "log": warmups.get(number),
+                "weight": warmups[number].weight_lb if number in warmups else None,
+            }
+            for number in range(1, prescription.warmup_sets + 1)
+        ]
+        substitution = next(
+            (log.substitution_request for log in logs if log.substitution_request), ""
+        )
+        resolved = resolve_prescribed_weight(prescription, request.user)
         cards.append({
             "prescription": prescription,
             "rows": rows,
+            "warmup_rows": warmup_rows,
             "previous": previous.get(prescription.id),
             "best": best_exercise_performance(request.user, prescription.exercise),
+            "track_distance": (
+                prescription.exercise.exercise_category in DISTANCE_CATEGORIES
+                or bool(prescription.target_reps_text)
+            ),
+            "substitution": substitution,
+            "resolved": resolved,
         })
     return render(request, "workouts/logger.html", {
         "session": session,
@@ -140,6 +175,7 @@ def autosave_set(request, session_uuid):
     set_number = _int_or_none(payload.get("set_number"))
     if not set_number or set_number > 30:
         return JsonResponse({"ok": False, "error": "Invalid set number."}, status=400)
+    is_warmup = bool(payload.get("is_warmup"))
 
     with transaction.atomic():
         log, _created = SetLog.objects.select_for_update().get_or_create(
@@ -147,7 +183,10 @@ def autosave_set(request, session_uuid):
             workout_exercise=prescription,
             exercise=prescription.exercise,
             set_number=set_number,
-            defaults={"is_extra": set_number > prescription.target_sets},
+            is_warmup=is_warmup,
+            defaults={
+                "is_extra": not is_warmup and set_number > prescription.target_sets,
+            },
         )
         log.weight_lb = _decimal_or_none(payload.get("weight"))
         log.reps = _int_or_none(payload.get("reps"))

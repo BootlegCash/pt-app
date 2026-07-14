@@ -78,15 +78,15 @@
 
 <h2 class="mt-1">Go to</h2>
 <div class="card-grid">
-  <a class="navcard" href="{% url 'profiles:me' %}"><span class="icon" aria-hidden="true">👤</span><div class="title">Profile</div></a>
-  <a class="navcard" href="{% url 'calendar_app:week' %}"><span class="icon" aria-hidden="true">📅</span><div class="title">Calendar</div></a>
-  <a class="navcard" href="{% url 'programs:my_program' %}"><span class="icon" aria-hidden="true">📋</span><div class="title">Current Program</div></a>
-  <a class="navcard" href="{% url 'workouts:history' %}"><span class="icon" aria-hidden="true">🏋️</span><div class="title">Workout History</div></a>
-  <a class="navcard" href="{% url 'progress:maxes' %}"><span class="icon" aria-hidden="true">🏆</span><div class="title">Strength &amp; PRs</div></a>
-  <a class="navcard" href="{% url 'profiles:measurements' %}"><span class="icon" aria-hidden="true">📏</span><div class="title">Measurements</div></a>
-  <a class="navcard" href="{% url 'progress:charts' %}"><span class="icon" aria-hidden="true">📈</span><div class="title">Progress Charts</div></a>
-  <a class="navcard" href="{% url 'nutrition:me' %}"><span class="icon" aria-hidden="true">🍽️</span><div class="title">Nutrition Targets</div></a>
-  <a class="navcard" href="{% url 'supplements:me' %}"><span class="icon" aria-hidden="true">💊</span><div class="title">Supplements</div></a>
-  <a class="navcard" href="{% url 'imports:my_files' %}"><span class="icon" aria-hidden="true">📁</span><div class="title">Uploaded Files</div></a>
+  <a class="navcard" href="{% url 'profiles:me' %}"><svg class="icon-svg" aria-hidden="true"><use href="#i-user"/></svg><div class="title">Profile</div></a>
+  <a class="navcard" href="{% url 'calendar_app:week' %}"><svg class="icon-svg" aria-hidden="true"><use href="#i-calendar"/></svg><div class="title">Calendar</div></a>
+  <a class="navcard" href="{% url 'programs:my_program' %}"><svg class="icon-svg" aria-hidden="true"><use href="#i-clipboard"/></svg><div class="title">Current Program</div></a>
+  <a class="navcard" href="{% url 'workouts:history' %}"><svg class="icon-svg" aria-hidden="true"><use href="#i-barbell"/></svg><div class="title">Workout History</div></a>
+  <a class="navcard" href="{% url 'progress:maxes' %}"><svg class="icon-svg" aria-hidden="true"><use href="#i-trophy"/></svg><div class="title">Strength &amp; PRs</div></a>
+  <a class="navcard" href="{% url 'profiles:measurements' %}"><svg class="icon-svg" aria-hidden="true"><use href="#i-ruler"/></svg><div class="title">Measurements</div></a>
+  <a class="navcard" href="{% url 'progress:charts' %}"><svg class="icon-svg" aria-hidden="true"><use href="#i-trend"/></svg><div class="title">Progress Charts</div></a>
+  <a class="navcard" href="{% url 'nutrition:me' %}"><svg class="icon-svg" aria-hidden="true"><use href="#i-plate"/></svg><div class="title">Nutrition Targets</div></a>
+  <a class="navcard" href="{% url 'supplements:me' %}"><svg class="icon-svg" aria-hidden="true"><use href="#i-pill"/></svg><div class="title">Supplements</div></a>
+  <a class="navcard" href="{% url 'imports:my_files' %}"><svg class="icon-svg" aria-hidden="true"><use href="#i-folder"/></svg><div class="title">Uploaded Files</div></a>
 </div>
 {% endblock %}

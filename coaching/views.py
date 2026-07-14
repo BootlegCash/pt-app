@@ -46,8 +46,20 @@ def dashboard(request):
         owner=request.user, status=Program.Status.ACTIVE,
         planned_end_date__lt=date_cls.today(),
     ).count()
+    relationships = {
+        relationship.client_id: relationship
+        for relationship in CoachClientRelationship.objects.filter(
+            coach=request.user,
+            status=CoachClientRelationship.Status.ACTIVE,
+            client__in=clients,
+        )
+    }
+    for summary in summaries:
+        summary["relationship"] = relationships.get(summary["client"].id)
     return render(request, "coaching/dashboard.html", {
         "summaries": summaries,
+        "active_client_count": len(summaries),
+        "attention_count": pending_imports + pending_progressions + pain_flags,
         "pending_imports": pending_imports,
         "pending_progressions": pending_progressions,
         "pain_flags": pain_flags,

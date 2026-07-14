@@ -184,3 +184,35 @@ class PrivateFileAccessTests(TestCase):
     def test_stored_filename_randomized(self):
         self.assertNotIn("notes", self.pdf.file.name)
         self.assertEqual(self.pdf.original_filename, "notes.pdf")
+
+    def test_client_cannot_open_coach_file_management_screen(self):
+        response = self.client.get(
+            reverse("imports:client_files", args=[self.athlete.uuid])
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_assigned_coach_can_manage_pdf_notes(self):
+        self.client.force_login(self.coach)
+        list_url = reverse("imports:client_files", args=[self.athlete.uuid])
+        self.assertEqual(self.client.get(list_url).status_code, 200)
+        edit_url = reverse("imports:pdf_edit", args=[self.pdf.uuid])
+        response = self.client.post(edit_url, {"coach_notes": "Review at check-in"})
+        self.assertRedirects(response, list_url)
+        self.pdf.refresh_from_db()
+        self.assertEqual(self.pdf.coach_notes, "Review at check-in")
+
+    def test_pdf_cannot_be_linked_to_another_clients_program(self):
+        other_athlete = make_user()
+        link_coach(self.coach, other_athlete)
+        other_program = Program.objects.create(
+            owner=self.coach, assigned_to=other_athlete, name="Other plan"
+        )
+        self.client.force_login(self.coach)
+        response = self.client.post(
+            reverse("imports:pdf_edit", args=[self.pdf.uuid]),
+            {"coach_notes": "private", "program": other_program.pk},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Select a valid choice")
+        self.pdf.refresh_from_db()
+        self.assertIsNone(self.pdf.program)
