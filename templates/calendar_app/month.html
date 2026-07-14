@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Calendar — month{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% if manage %}{{ athlete.display_label }} — {% endif %}{{ grid.month_name }}</h1>
+  <div class="row">
+    {% if manage %}
+      <a class="btn btn-sm" href="{% url 'coaching:client_calendar' athlete.uuid %}?view=month&year={{ grid.prev.year }}&month={{ grid.prev.month }}">←</a>
+      <a class="btn btn-sm" href="{% url 'coaching:client_calendar' athlete.uuid %}?view=month&year={{ grid.next.year }}&month={{ grid.next.month }}">→</a>
+      <a class="btn btn-sm" href="{% url 'coaching:client_calendar' athlete.uuid %}">Week view</a>
+    {% else %}
+      <a class="btn btn-sm" href="{% url 'calendar_app:month' %}?year={{ grid.prev.year }}&month={{ grid.prev.month }}">←</a>
+      <a class="btn btn-sm" href="{% url 'calendar_app:month' %}?year={{ grid.next.year }}&month={{ grid.next.month }}">→</a>
+      <a class="btn btn-sm" href="{% url 'calendar_app:week' %}">Week view</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="cal-grid" role="grid" aria-label="{{ grid.month_name }}">
+    <div class="cal-head">Mon</div><div class="cal-head">Tue</div><div class="cal-head">Wed</div>
+    <div class="cal-head">Thu</div><div class="cal-head">Fri</div><div class="cal-head">Sat</div>
+    <div class="cal-head">Sun</div>
+    {% for week in grid.weeks %}
+      {% for cell in week %}
+        {% if cell %}
+        <div class="cal-cell {% if cell.is_today %}today{% endif %}">
+          <div class="daynum">{{ cell.date|date:"j" }}</div>
+          {% for session in cell.sessions %}
+            {% if manage %}
+              <a class="cal-pill {{ session.color_class }}" href="{% url 'calendar_app:coach_session_edit' session.uuid %}">{{ session.title }}</a>
+            {% else %}
+              <a class="cal-pill {{ session.color_class }}" href="{% url 'calendar_app:day_detail' session.uuid %}">{{ session.title }}</a>
+            {% endif %}
+          {% endfor %}
+        </div>
+        {% else %}<div class="cal-cell blank" aria-hidden="true"></div>{% endif %}
+      {% endfor %}
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

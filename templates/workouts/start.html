@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Readiness check{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Before you start</h1>
+    <span class="muted">{{ scheduled.title }} · {{ scheduled.date|date:"D, M j" }}</span>
+  </div>
+</div>
+<div class="card">
+  <p class="muted">Quick check-in (1 = poor, 5 = great). This helps your coach read the
+    session in context.</p>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% for field in form %}
+      {% if field.name == 'pain_today' %}
+        <div class="form-row row">
+          {{ field }} <label for="{{ field.id_for_label }}" style="margin:0">Any pain today?</label>
+        </div>
+      {% else %}
+        <div class="form-row">
+          <label>{{ field.label }}</label>
+          <div class="rating-row">
+            {% for radio in field %}
+              <label>{{ radio.tag }}<span>{{ radio.choice_label }}</span></label>
+            {% endfor %}
+          </div>
+          {{ field.errors }}
+        </div>
+      {% endif %}
+    {% endfor %}
+    <button type="submit" class="btn btn-primary btn-block">Start workout →</button>
+  </form>
+</div>
+{% endblock %}

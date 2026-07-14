@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Log in{% endblock %}
+{% block content_public %}
+<div class="auth-page">
+  <div class="auth-card">
+    <div class="brand">PT<span>Portal</span></div>
+    <div class="card">
+      <h1>Log in</h1>
+      {% if form.non_field_errors %}
+        <div class="alert alert-error" role="alert">{{ form.non_field_errors }}</div>
+      {% endif %}
+      <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="form-row">
+          <label for="{{ form.username.id_for_label }}">Username or email</label>
+          {{ form.username }}
+          {{ form.username.errors }}
+        </div>
+        <div class="form-row">
+          <label for="{{ form.password.id_for_label }}">Password</label>
+          {{ form.password }}
+          {{ form.password.errors }}
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Log in</button>
+      </form>
+      <p class="mt-1"><a href="{% url 'accounts:password_reset' %}">Forgot password?</a></p>
+      <p class="muted">Accounts are created by your coach or administrator.
+        If you need access, contact your administrator.</p>
+      <p class="faint"><a href="{% url 'core:privacy' %}">Privacy</a> ·
+        <a href="{% url 'core:terms' %}">Terms &amp; disclaimer</a></p>
+    </div>
+  </div>
+</div>
+{% endblock %}

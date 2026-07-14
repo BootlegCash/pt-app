@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Nutrition — {{ client.display_label }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Nutrition calculator</h1>
+  <span class="muted">{{ client.display_label }}</span></div>
+  <a class="btn btn-sm" href="{% url 'coaching:client_detail' client.uuid %}">← Client</a>
+</div>
+
+<div class="card">
+  <h2>Bodyweight trend</h2>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Week of</th><th>Avg bodyweight</th><th>Readings</th></tr></thead>
+    <tbody>
+    {% for row in weekly %}
+      <tr><td>{{ row.week_start|date:"M j" }}</td>
+        <td>{% if row.average %}{{ row.average }} lb{% else %}—{% endif %}</td>
+        <td class="muted">{{ row.readings }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <div class="alert {% if trend.action == 'maintain' %}alert-success{% elif trend.action == 'collect_data' or trend.action == 'check_adherence' %}alert-info{% else %}alert-warning{% endif %}">
+    <strong>Trend recommendation:</strong> {{ trend.message }}
+    <br><span class="muted">Nothing changes automatically — apply any adjustment through the
+    override form below.</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Calculate targets</h2>
+  <p class="muted">Mifflin-St Jeor by default; Katch-McArdle optional with a body-fat estimate.
+    Results are estimates that require adjustment against the real bodyweight trend.</p>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "partials/form.html" with form=calc_form %}
+    <button type="submit" name="calculate" value="1" class="btn">Calculate</button>
+  </form>
+
+  {% if result %}
+  <hr>
+  <h3>Result ({{ result.method|title }})</h3>
+  <div class="card-grid">
+    <div class="metric"><div class="label">BMR</div><div class="value">{{ result.bmr }}</div></div>
+    <div class="metric"><div class="label">Maintenance (TDEE)</div><div class="value">{{ result.maintenance_calories }}</div></div>
+    <div class="metric"><div class="label">Calories</div><div class="value">{{ result.calories }}</div></div>
+    <div class="metric"><div class="label">Protein</div><div class="value">{{ result.protein_g }} g</div></div>
+    <div class="metric"><div class="label">Carbs</div><div class="value">{{ result.carbs_g }} g</div></div>
+    <div class="metric"><div class="label">Fat</div><div class="value">{{ result.fat_g }} g</div></div>
+    <div class="metric"><div class="label">Fiber</div><div class="value">{{ result.fiber_g }} g</div></div>
+    <div class="metric"><div class="label">Water</div><div class="value">{{ result.water_oz }} oz</div></div>
+    <div class="metric"><div class="label">Expected trend</div><div class="value" style="font-size:1rem">{{ result.expected_weekly_change_lb }} lb/wk</div></div>
+  </div>
+  {% for warning in result.warnings %}<div class="alert alert-warning">{{ warning }}</div>{% endfor %}
+  <form method="post">
+    {% csrf_token %}
+    {% for field in calc_form %}{% if field.value is not None and field.name != 'use_katch' %}<input type="hidden" name="{{ field.html_name }}" value="{{ field.value }}">{% endif %}{% if field.name == 'use_katch' and field.value %}<input type="hidden" name="{{ field.html_name }}" value="on">{% endif %}{% endfor %}
+    <input type="hidden" name="calculate" value="1">
+    <input type="hidden" name="apply" value="1">
+    <button type="submit" class="btn btn-primary">Save calculated targets to client</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>Final targets &amp; guidance (coach overrides)</h2>
+  <p class="muted">Clients see the final value when set, otherwise the calculated one.
+    Current calculated: {{ target.calculated_calories|default:"—" }} kcal ·
+    P {{ target.calculated_protein_g|default:"—" }} ·
+    C {{ target.calculated_carbs_g|default:"—" }} ·
+    F {{ target.calculated_fat_g|default:"—" }}</p>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "partials/form.html" with form=override_form %}
+    <button type="submit" name="save_overrides" value="1" class="btn btn-primary">Save final targets</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Macro rules in effect</h2>
+  <p class="muted mb-0">Ruleset “{{ ruleset.name }}”: protein {{ ruleset.protein_g_per_lb }} g/lb
+    ({{ ruleset.protein_g_per_lb_cut }} g/lb on cut/recomp), fat {{ ruleset.fat_percent_calories }}%
+    of calories (min {{ ruleset.fat_minimum_g_per_lb }} g/lb), fiber
+    {{ ruleset.fiber_g_per_1000_kcal }} g/1000 kcal, water {{ ruleset.water_oz_per_lb }} oz/lb,
+    {{ ruleset.kcal_per_lb_weekly_change }} kcal/day per lb/week. Edit rulesets in Django Admin.</p>
+</div>
+{% endblock %}

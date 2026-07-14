@@ -1,0 +1,4 @@
+{% extends "base.html" %}
+{% block title %}Not found{% endblock %}
+{% block content %}{% include "errors/_error_body.html" with code="404" text="That page doesn't exist." %}{% endblock %}
+{% block content_public %}{% include "errors/_error_body.html" with code="404" text="That page doesn't exist." %}{% endblock %}

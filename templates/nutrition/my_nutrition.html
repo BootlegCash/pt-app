@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Nutrition targets{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Nutrition targets</h1>
+  {% if target %}<span class="muted">Updated {{ target.updated_at|date:"M j, Y" }}</span>{% endif %}
+</div>
+
+{% if not target or not target.has_targets %}
+  <div class="empty"><span class="icon" aria-hidden="true">🍽️</span>
+    <p>Your coach hasn't assigned nutrition targets yet.</p></div>
+{% else %}
+
+<div class="card-grid">
+  <div class="metric"><div class="label">Goal</div>
+    <div class="value" style="font-size:1rem">{{ target.goal|title|default:"—" }}</div></div>
+  <div class="metric"><div class="label">Calories</div>
+    <div class="value">{{ target.macro_calories|default:"—" }}</div>
+    {% if target.maintenance_calories %}<div class="sub">est. maintenance {{ target.maintenance_calories }}</div>{% endif %}</div>
+  <div class="metric"><div class="label">Protein</div>
+    <div class="value">{{ target.macro_protein|default:"—" }} g</div></div>
+  <div class="metric"><div class="label">Carbs</div>
+    <div class="value">{{ target.macro_carbs|default:"—" }} g</div></div>
+  <div class="metric"><div class="label">Fat</div>
+    <div class="value">{{ target.macro_fat|default:"—" }} g</div></div>
+  <div class="metric"><div class="label">Fiber</div>
+    <div class="value">{{ target.macro_fiber|default:"—" }} g</div></div>
+  <div class="metric"><div class="label">Water</div>
+    <div class="value">{{ target.macro_water|default:"—" }} oz</div></div>
+  {% if target.expected_weekly_change_lb is not None %}
+  <div class="metric"><div class="label">Expected trend</div>
+    <div class="value" style="font-size:1rem">{% if target.expected_weekly_change_lb > 0 %}+{% endif %}{{ target.expected_weekly_change_lb }} lb/wk</div></div>
+  {% endif %}
+</div>
+
+<div class="alert alert-info">Calorie targets are estimates. Your coach adjusts them from your
+  real bodyweight trend over 2–4 weeks — not from a single weigh-in.</div>
+
+{% if target.sodium_guidance %}
+<div class="card"><h2>Sodium &amp; electrolytes</h2><p class="mb-0">{{ target.sodium_guidance }}</p></div>
+{% endif %}
+
+{% if target.pre_workout_suggestion or target.post_workout_suggestion %}
+<div class="card">
+  <h2>Around workouts</h2>
+  {% if target.pre_workout_suggestion %}<p><strong>Pre-workout:</strong> {{ target.pre_workout_suggestion|linebreaksbr }}</p>{% endif %}
+  {% if target.post_workout_suggestion %}<p class="mb-0"><strong>Post-workout:</strong> {{ target.post_workout_suggestion|linebreaksbr }}</p>{% endif %}
+</div>
+{% endif %}
+
+{% if target.example_meals %}
+<div class="card"><h2>Example meal ideas</h2><p class="mb-0">{{ target.example_meals|linebreaksbr }}</p></div>
+{% endif %}
+
+{% if target.coach_notes %}
+<div class="card"><h2>Coach notes</h2><p class="mb-0">{{ target.coach_notes|linebreaksbr }}</p></div>
+{% endif %}
+
+<div class="card">
+  <h2>Today's check-in <span class="muted">({{ today|date:"D, M j" }})</span></h2>
+  <p class="muted">Optional — no food logging needed, just yes/no.</p>
+  <form method="post" action="{% url 'nutrition:checkin' %}">
+    {% csrf_token %}
+    <div class="row">
+      <label class="row" style="margin:0"><input type="checkbox" name="calories_met" {% if checkin.calories_met %}checked{% endif %}> Calories on target</label>
+      <label class="row" style="margin:0"><input type="checkbox" name="protein_met" {% if checkin.protein_met %}checked{% endif %}> Protein hit</label>
+      <label class="row" style="margin:0"><input type="checkbox" name="water_met" {% if checkin.water_met %}checked{% endif %}> Water hit</label>
+      <label class="row" style="margin:0"><input type="checkbox" name="fiber_met" {% if checkin.fiber_met %}checked{% endif %}> Fiber hit</label>
+    </div>
+    <button type="submit" class="btn btn-primary" style="margin-top:.75rem">Save check-in</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

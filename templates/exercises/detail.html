@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ exercise.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ exercise.name }}</h1>
+  <a class="btn btn-sm" href="{% url 'workouts:exercise_history' exercise.slug %}">My history</a>
+</div>
+
+<div class="row" style="margin-bottom:1rem">
+  <span class="badge badge-blue">{{ exercise.get_primary_muscle_display }}</span>
+  <span class="badge">{{ exercise.get_movement_pattern_display }}</span>
+  <span class="badge">{{ exercise.get_equipment_display }}</span>
+  <span class="badge">{{ exercise.get_exercise_category_display }}</span>
+  <span class="badge">{% if exercise.is_compound %}Compound{% else %}Isolation{% endif %}</span>
+  {% if exercise.unilateral %}<span class="badge badge-purple">Unilateral</span>{% endif %}
+</div>
+
+{% if exercise.instructions %}<div class="card"><h2>How to perform</h2><p class="mb-0">{{ exercise.instructions|linebreaksbr }}</p></div>{% endif %}
+{% if exercise.coaching_cues %}<div class="card"><h2>Coaching cues</h2><p class="mb-0">{{ exercise.coaching_cues|linebreaksbr }}</p></div>{% endif %}
+{% if exercise.common_mistakes %}<div class="card"><h2>Common mistakes</h2><p class="mb-0">{{ exercise.common_mistakes|linebreaksbr }}</p></div>{% endif %}
+{% if exercise.default_video_url %}<div class="card"><h2>Video</h2><a href="{{ exercise.default_video_url }}" rel="noopener" target="_blank">Watch demonstration ↗</a></div>{% endif %}
+{% if exercise.substitutions.exists %}
+<div class="card"><h2>Substitutions</h2>
+  <div class="row">{% for sub in exercise.substitutions.all %}
+    <a class="badge badge-blue" href="{% url 'exercises:detail' sub.slug %}">{{ sub.name }}</a>
+  {% endfor %}</div>
+</div>
+{% endif %}
+{% endblock %}

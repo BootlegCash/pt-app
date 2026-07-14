@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Assign program{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Assign “{{ program.name }}”</h1></div>
+<div class="card">
+  <p>Assigning to <strong>{{ client.display_label }}</strong> will:</p>
+  <ul>
+    <li>Set this as their current program</li>
+    <li>Mark the program active from the chosen start date</li>
+    <li>Replace their not-yet-completed scheduled sessions with this program's calendar</li>
+  </ul>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "partials/form.html" with form=form %}
+    <button type="submit" class="btn btn-primary">Assign program</button>
+    <a class="btn" href="{% url 'coaching:client_detail' client.uuid %}">Cancel</a>
+  </form>
+</div>
+{% endblock %}

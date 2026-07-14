@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Supplements — {{ client.display_label }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Supplement assignment</h1><span class="muted">{{ client.display_label }}</span></div>
+  <a class="btn btn-sm" href="{% url 'coaching:client_detail' client.uuid %}">← Client</a>
+</div>
+
+<div class="card">
+  <h2>Assigned</h2>
+  {% if recommendations %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Supplement</th><th>Dose</th><th>Timing</th><th>Frequency</th><th>Active</th><th></th></tr></thead>
+    <tbody>
+    {% for rec in recommendations %}
+    <tr {% if not rec.active %}style="opacity:.5"{% endif %}>
+      <td>{{ rec.supplement.name }}</td>
+      <td>{{ rec.assigned_dose }} {{ rec.dose_unit }}</td>
+      <td>{{ rec.timing }}</td>
+      <td>{{ rec.frequency }}</td>
+      <td>{% if rec.active %}<span class="badge badge-green">active</span>{% else %}<span class="badge">inactive</span>{% endif %}</td>
+      <td><form method="post" action="{% url 'supplements:coach_toggle' rec.uuid %}">{% csrf_token %}
+        <button type="submit" class="btn btn-sm">{% if rec.active %}Deactivate{% else %}Reactivate{% endif %}</button></form></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="muted mb-0">Nothing assigned yet.</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Assign a supplement</h2>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "partials/form.html" with form=form %}
+    <button type="submit" class="btn btn-primary">Assign</button>
+  </form>
+  <p class="disclaimer mb-0">Defaults in the library are conservative and educational.
+    Doses are the coach's responsibility; supplements are never presented as disease treatments.</p>
+</div>
+{% endblock %}

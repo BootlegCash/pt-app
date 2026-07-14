@@ -1,0 +1,86 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>{% block title %}Training{% endblock %} · PT Portal</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+{% if user.is_authenticated %}
+<div class="layout">
+  <aside class="sidebar">
+    <div class="brand">PT<span>Portal</span></div>
+    <nav aria-label="Main navigation">
+      <a href="{% url 'core:dashboard' %}" data-nav><span aria-hidden="true">🏠</span> Dashboard</a>
+      <a href="{% url 'calendar_app:week' %}" data-nav><span aria-hidden="true">📅</span> Calendar</a>
+      <a href="{% url 'programs:my_program' %}" data-nav><span aria-hidden="true">📋</span> Current Program</a>
+      <a href="{% url 'workouts:history' %}" data-nav><span aria-hidden="true">🏋️</span> Workout History</a>
+      <a href="{% url 'progress:maxes' %}" data-nav><span aria-hidden="true">🏆</span> Strength &amp; PRs</a>
+      <a href="{% url 'progress:charts' %}" data-nav><span aria-hidden="true">📈</span> Progress Charts</a>
+      <a href="{% url 'profiles:measurements' %}" data-nav><span aria-hidden="true">📏</span> Measurements</a>
+      <a href="{% url 'nutrition:me' %}" data-nav><span aria-hidden="true">🍽️</span> Nutrition</a>
+      <a href="{% url 'supplements:me' %}" data-nav><span aria-hidden="true">💊</span> Supplements</a>
+      <a href="{% url 'imports:my_files' %}" data-nav><span aria-hidden="true">📁</span> Uploaded Files</a>
+      <a href="{% url 'exercises:library' %}" data-nav><span aria-hidden="true">📚</span> Exercise Library</a>
+      <a href="{% url 'profiles:me' %}" data-nav><span aria-hidden="true">👤</span> Profile</a>
+      {% if user.is_coach or user.is_staff %}
+        <div class="nav-section">Coaching</div>
+        <a href="{% url 'coaching:dashboard' %}" data-nav><span aria-hidden="true">🧑‍🏫</span> Coach Dashboard</a>
+        <a href="{% url 'programs:builder_list' %}" data-nav><span aria-hidden="true">🛠️</span> Program Builder</a>
+        <a href="{% url 'coaching:progression_approvals' %}" data-nav><span aria-hidden="true">✅</span> Progressions</a>
+        <a href="{% url 'coaching:pain_flags' %}" data-nav><span aria-hidden="true">🚩</span> Pain Flags</a>
+        <a href="{% url 'imports:approvals' %}" data-nav><span aria-hidden="true">📥</span> Upload Approvals</a>
+      {% endif %}
+      {% if user.is_staff %}
+        <div class="nav-section">Admin</div>
+        <a href="{% url 'coaching:create_user' %}" data-nav><span aria-hidden="true">➕</span> Create User</a>
+        <a href="/admin/"><span aria-hidden="true">⚙️</span> Django Admin</a>
+      {% endif %}
+      <div class="nav-section">Account</div>
+      <a href="{% url 'accounts:settings' %}" data-nav><span aria-hidden="true">🔐</span> Settings</a>
+      <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}
+        <button class="btn btn-sm btn-block" type="submit">Log out</button>
+      </form>
+    </nav>
+  </aside>
+  <div class="main">
+    <header class="topbar">
+      <div class="brand">PT<span>Portal</span></div>
+      <div class="row">
+        <a class="btn btn-sm" href="{% url 'accounts:settings' %}" aria-label="Account settings">⚙️</a>
+        <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}
+          <button class="btn btn-sm" type="submit">Log out</button>
+        </form>
+      </div>
+    </header>
+    <div class="container">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert alert-{% if message.tags == 'error' %}error{% elif message.tags == 'success' %}success{% elif message.tags == 'warning' %}warning{% else %}info{% endif %}" role="status">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+<nav class="bottomnav" aria-label="Mobile navigation">
+  <a href="{% url 'core:dashboard' %}" data-nav><span class="icon" aria-hidden="true">🏠</span>Home</a>
+  <a href="{% url 'calendar_app:week' %}" data-nav><span class="icon" aria-hidden="true">📅</span>Calendar</a>
+  <a href="{% url 'programs:my_program' %}" data-nav><span class="icon" aria-hidden="true">📋</span>Program</a>
+  <a href="{% url 'progress:charts' %}" data-nav><span class="icon" aria-hidden="true">📈</span>Progress</a>
+  <a href="{% url 'profiles:me' %}" data-nav><span class="icon" aria-hidden="true">👤</span>Profile</a>
+</nav>
+{% else %}
+<div class="container">
+  {% if messages %}
+    {% for message in messages %}<div class="alert alert-info" role="status">{{ message }}</div>{% endfor %}
+  {% endif %}
+  {% block content_public %}{% endblock %}
+</div>
+{% endif %}
+<script src="{% static 'js/app.js' %}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

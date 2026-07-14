@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}{{ client.display_label }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="row">
+    <div class="avatar" aria-hidden="true">{{ client.initials }}</div>
+    <div>
+      <h1>{{ client.display_label }}</h1>
+      <span class="muted">{{ client.email }}
+        {% if summary.profile %} · {{ summary.profile.get_training_goal_display }}{% endif %}</span>
+    </div>
+  </div>
+  {% if not client.is_active %}<span class="badge badge-red">Deactivated</span>{% endif %}
+</div>
+
+<div class="card-grid">
+  <a class="navcard" href="{% url 'coaching:client_profile_edit' client.uuid %}"><span class="icon" aria-hidden="true">👤</span><div class="title">Profile</div><div class="sub">edit details &amp; goals</div></a>
+  <a class="navcard" href="{% url 'coaching:client_measurements' client.uuid %}"><span class="icon" aria-hidden="true">📏</span><div class="title">Measurements</div><div class="sub">record &amp; review</div></a>
+  <a class="navcard" href="{% url 'coaching:client_maxes' client.uuid %}"><span class="icon" aria-hidden="true">🏆</span><div class="title">Maxes</div><div class="sub">record lifts</div></a>
+  <a class="navcard" href="{% url 'coaching:client_calendar' client.uuid %}"><span class="icon" aria-hidden="true">📅</span><div class="title">Calendar</div><div class="sub">schedule sessions</div></a>
+  <a class="navcard" href="{% url 'coaching:client_history' client.uuid %}"><span class="icon" aria-hidden="true">🏋️</span><div class="title">Workout history</div></a>
+  <a class="navcard" href="{% url 'nutrition:coach_calculator' client.uuid %}"><span class="icon" aria-hidden="true">🍽️</span><div class="title">Nutrition</div><div class="sub">calculator &amp; targets</div></a>
+  <a class="navcard" href="{% url 'supplements:coach_assign' client.uuid %}"><span class="icon" aria-hidden="true">💊</span><div class="title">Supplements</div></a>
+  {% if summary.profile.current_program %}
+  <a class="navcard" href="{% url 'programs:builder_detail' summary.profile.current_program.uuid %}"><span class="icon" aria-hidden="true">📋</span><div class="title">Program</div><div class="sub">{{ summary.profile.current_program.name|truncatechars:24 }}</div></a>
+  {% else %}
+  <a class="navcard" href="{% url 'programs:builder_list' %}"><span class="icon" aria-hidden="true">📋</span><div class="title">Assign program</div><div class="sub">no active program</div></a>
+  {% endif %}
+</div>
+
+<div class="row" style="margin-bottom:1rem">
+  {% if summary.pain_flags %}<span class="badge badge-red">🚩 {{ summary.pain_flags }} unreviewed pain reports</span>{% endif %}
+  <span class="badge">This week {{ summary.adherence.completed }}/{{ summary.adherence.scheduled }}</span>
+  {% if summary.missed %}<span class="badge badge-red">{{ summary.missed }} missed in 14d</span>{% endif %}
+  {% if summary.recent_prs %}<span class="badge badge-green">{{ summary.recent_prs }} PRs in 14d</span>{% endif %}
+</div>
+
+{% if pending_recommendations %}
+<div class="card">
+  <div class="spread"><h2>Pending progression recommendations</h2>
+    <a class="btn btn-sm" href="{% url 'coaching:progression_approvals' %}">Review all</a></div>
+  <div class="table-wrap"><table class="table">
+    <tbody>
+    {% for rec in pending_recommendations %}
+    <tr><td>{{ rec.workout_exercise.exercise.name }}</td>
+      <td><span class="badge badge-blue">{{ rec.get_action_display }}{% if rec.amount_lb %} {{ rec.amount_lb }} lb{% endif %}</span></td>
+      <td class="muted">{{ rec.previous_performance|truncatechars:44 }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>Current maxes</h2>
+  {% if maxes %}
+  <div class="table-wrap"><table class="table">
+    <tbody>
+    {% for row in maxes %}
+    <tr><td>{{ row.max.exercise.name }}</td><td><strong>{{ row.max.best_value }} lb</strong></td>
+      <td class="muted">{{ row.max.date|date:"M j, Y" }}</td>
+      <td>{% if row.change is not None %}{% if row.change > 0 %}+{% endif %}{{ row.change|floatformat:1 }}{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="muted mb-0">No maxes recorded.</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Recent workouts</h2>
+  {% if recent_sessions %}
+  <div class="table-wrap"><table class="table">
+    <tbody>
+    {% for session in recent_sessions %}
+    <tr>
+      <td>{{ session.date|date:"M j" }}</td>
+      <td>{{ session.title }}</td>
+      <td><span class="badge {% if session.status == 'completed' %}badge-green{% elif session.status == 'partial' %}badge-yellow{% else %}badge-blue{% endif %}">{{ session.get_status_display }}</span></td>
+      <td>{% if session.notes %}📝 {{ session.notes|truncatechars:40 }}{% endif %}</td>
+      <td><a class="btn btn-sm" href="{% url 'coaching:client_session_detail' client.uuid session.uuid %}">View</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="muted mb-0">No workouts logged yet.</p>{% endif %}
+</div>
+
+{% if relationship %}
+<div class="card">
+  <h2>Private coach notes</h2>
+  <form method="post" action="{% url 'coaching:client_notes_save' client.uuid %}">
+    {% csrf_token %}
+    {% include "partials/form.html" with form=notes_form %}
+    <button type="submit" class="btn btn-primary">Save notes</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

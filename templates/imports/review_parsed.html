@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Review parsed plan{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Review the interpreted plan</h1>
+  <span class="muted">{{ job.original_filename }} · {{ total }} row{{ total|pluralize }}</span></div>
+
+<div class="alert alert-info">Check that everything was read correctly, then submit for your
+  coach's approval. Your current program is not affected until your coach approves and
+  assigns the imported plan.</div>
+
+<div class="card">
+  {% include "imports/_parsed_table.html" with rows=rows %}
+</div>
+
+<form method="post" class="sticky-actions">
+  {% csrf_token %}
+  <button type="submit" class="btn btn-primary btn-block">Submit for coach approval</button>
+  <a class="btn" href="{% url 'imports:mapping' job.uuid %}">← Fix mapping</a>
+</form>
+{% endblock %}

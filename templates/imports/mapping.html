@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Map columns{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Map columns</h1>
+  <span class="muted">{{ job.original_filename }} · {{ job.selected_sheet }}</span></div>
+
+<div class="card">
+  <h2>Preview (first rows)</h2>
+  <div class="table-wrap"><table class="table">
+    <thead><tr>{% for cell in header %}<th>Col {{ forloop.counter0 }}: {{ cell|truncatechars:18 }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for row in preview %}{% if not forloop.first %}
+      <tr>{% for cell in row %}<td>{{ cell|truncatechars:20 }}</td>{% endfor %}</tr>
+    {% endif %}{% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+<div class="card">
+  <h2>Tell us which column is which</h2>
+  <p class="muted">Only Exercise is required. Rep formats like “8–12”, “10/leg”, “AMRAP”, or
+    “30 seconds” are handled automatically.</p>
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-grid">
+      {% for field, label in fields %}
+      <div class="form-row">
+        <label for="map_{{ field }}">{{ label }}{% if field == 'exercise' %} *{% endif %}</label>
+        <select id="map_{{ field }}" name="map_{{ field }}">
+          <option value="">— not in file —</option>
+          {% for index, name in columns %}
+            <option value="{{ index }}">Col {{ index }}: {{ name|truncatechars:24 }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endfor %}
+    </div>
+    <label class="row"><input type="checkbox" name="has_header" checked> First row is a header row</label>
+    <div class="mt-1">
+      <button type="submit" class="btn btn-primary">Parse &amp; preview plan →</button>
+      <a class="btn" href="{% url 'imports:select_sheet' job.uuid %}">← Back</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

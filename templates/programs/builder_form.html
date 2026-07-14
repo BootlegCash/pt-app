@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{% if program %}Edit {{ program.name }}{% else %}New program{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head"><h1>{% if program %}Edit program{% else %}New program{% endif %}</h1></div>
+<div class="card">
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "partials/form.html" with form=form %}
+    <button type="submit" class="btn btn-primary">{% if program %}Save changes{% else %}Create draft{% endif %}</button>
+    {% if program %}<a class="btn" href="{% url 'programs:builder_detail' program.uuid %}">Cancel</a>{% endif %}
+  </form>
+</div>
+{% endblock %}

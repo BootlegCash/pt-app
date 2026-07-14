@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Measurements — {{ client.display_label }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Measurements</h1><span class="muted">{{ client.display_label }}</span></div>
+  <a class="btn btn-sm" href="{% url 'coaching:client_detail' client.uuid %}">← Client</a>
+</div>
+
+<div class="card">
+  <h2>Record measurement</h2>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "partials/form.html" with form=form %}
+    <button type="submit" class="btn btn-primary">Save measurement</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>History</h2>
+  {% if measurements %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Date</th><th>BW</th><th>Waist</th><th>Chest</th><th>Arms L/R</th><th>Thighs L/R</th><th>BF% est.</th><th>By</th></tr></thead>
+    <tbody>
+    {% for m in measurements %}
+    <tr>
+      <td>{{ m.date|date:"M j, Y" }}</td>
+      <td>{{ m.bodyweight_lb|default:"—" }}</td>
+      <td>{{ m.waist|default:"—" }}</td>
+      <td>{{ m.chest|default:"—" }}</td>
+      <td>{{ m.left_arm|default:"—" }}/{{ m.right_arm|default:"—" }}</td>
+      <td>{{ m.left_thigh|default:"—" }}/{{ m.right_thigh|default:"—" }}</td>
+      <td>{% if m.estimated_body_fat %}~{{ m.estimated_body_fat }}{% else %}—{% endif %}</td>
+      <td class="muted">{{ m.entered_by.username|default:"—" }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<p class="muted mb-0">No measurements yet.</p>{% endif %}
+</div>
+{% endblock %}

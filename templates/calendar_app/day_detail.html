@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}{{ session.title }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ session.title }}</h1>
+    <span class="muted">{{ session.date|date:"l, M j, Y" }} ·
+      {{ session.get_session_type_display }}
+      {% if session.workout_day.focus %} · {{ session.workout_day.focus }}{% endif %}</span>
+  </div>
+  <span class="cal-pill {{ session.color_class }}">{{ session.effective_status|title }}</span>
+</div>
+
+{% if session.notes %}<div class="alert alert-info">{{ session.notes }}</div>{% endif %}
+
+{% if session.workout_day %}
+  {% if session.workout_day.warmup_notes %}
+  <div class="card"><h2>Warm-up</h2><p class="mb-0">{{ session.workout_day.warmup_notes|linebreaksbr }}</p></div>
+  {% endif %}
+  {% if session.workout_day.workout_notes %}
+  <div class="card"><h2>Coach notes</h2><p class="mb-0">{{ session.workout_day.workout_notes|linebreaksbr }}</p></div>
+  {% endif %}
+
+  <div class="card">
+    <h2>Planned work</h2>
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th>#</th><th>Exercise</th><th>Sets×Reps</th><th>Load</th><th>Effort</th><th>Rest</th><th>Last time</th></tr></thead>
+      <tbody>
+      {% for we in session.workout_day.exercises.all %}
+        {% if we.active %}
+        <tr>
+          <td>{{ we.order }}{% if we.superset_group %} <span class="badge badge-purple">SS {{ we.superset_group }}</span>{% endif %}</td>
+          <td><a href="{% url 'exercises:detail' we.exercise.slug %}">{{ we.exercise.name }}</a>
+            {% if we.optional %}<span class="badge">optional</span>{% endif %}
+            {% if we.client_visible_notes %}<div class="muted" style="font-size:.8rem">{{ we.client_visible_notes }}</div>{% endif %}</td>
+          <td>{{ we.target_sets }}×{{ we.rep_target_display }}{% if we.warmup_sets %} <span class="muted">(+{{ we.warmup_sets }} warm-up)</span>{% endif %}</td>
+          <td>{% if we.target_weight_lb %}{{ we.target_weight_lb }} lb{% elif we.target_percentage %}{{ we.target_percentage }}%{% else %}—{% endif %}</td>
+          <td>{{ we.effort_display|default:"—" }}{% if we.tempo %} · {{ we.tempo }}{% endif %}</td>
+          <td>{% if we.rest_seconds %}{{ we.rest_seconds }}s{% else %}—{% endif %}</td>
+          <td class="muted">
+            {% for pid, prev in previous.items %}{% if pid == we.id and prev %}{{ prev.summary }} <span class="faint">({{ prev.date|date:"M j" }})</span>{% endif %}{% endfor %}
+          </td>
+        </tr>
+        {% endif %}
+      {% endfor %}
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="sticky-actions">
+    {% if workout_session %}
+      {% if workout_session.status == 'in_progress' %}
+        <a class="btn btn-primary btn-block" href="{% url 'workouts:logger' workout_session.uuid %}">Resume workout</a>
+      {% else %}
+        <a class="btn btn-block" href="{% url 'workouts:detail' workout_session.uuid %}">View logged workout</a>
+      {% endif %}
+    {% else %}
+      <a class="btn btn-primary btn-block" href="{% url 'workouts:start' session.uuid %}">▶ Start workout</a>
+    {% endif %}
+  </div>
+{% else %}
+  <div class="card"><p class="mb-0 muted">This calendar entry has no attached workout plan
+    ({{ session.get_session_type_display }}).</p></div>
+{% endif %}
+{% endblock %}

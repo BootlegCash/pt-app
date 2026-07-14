@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Current program{% endblock %}
+{% block content %}
+{% if not program %}
+  <div class="empty" style="margin-top:10vh"><span class="icon" aria-hidden="true">📋</span>
+    <h1>No active program</h1>
+    <p>Your coach hasn't assigned a program yet. Check back soon.</p></div>
+{% else %}
+<div class="page-head">
+  <div>
+    <h1>{{ program.name }}</h1>
+    <span class="muted">{{ program.get_main_goal_display }} ·
+      started {{ program.start_date|date:"M j, Y" }} ·
+      {{ program.number_of_weeks }} week{{ program.number_of_weeks|pluralize }}</span>
+  </div>
+  {% if current_week %}<span class="badge badge-blue">Week {{ current_week }}</span>{% endif %}
+</div>
+
+{% if program.description %}<div class="card"><h2>About this program</h2><p class="mb-0">{{ program.description|linebreaksbr }}</p></div>{% endif %}
+{% if program.client_visible_notes %}<div class="card"><h2>Coach instructions</h2><p class="mb-0">{{ program.client_visible_notes|linebreaksbr }}</p></div>{% endif %}
+
+{% for week in program.weeks.all %}
+<div class="card">
+  <div class="spread">
+    <h2 class="mb-0">Week {{ week.week_number }}{% if week.title %} — {{ week.title }}{% endif %}</h2>
+    <span>
+      {% if week.week_number == current_week %}<span class="badge badge-blue">Current</span>{% endif %}
+      {% if week.deload %}<span class="badge badge-yellow">Deload</span>{% endif %}
+      {% if week.testing_week %}<span class="badge badge-purple">Testing week</span>{% endif %}
+    </span>
+  </div>
+  {% if week.focus %}<p class="muted">{{ week.focus }}</p>{% endif %}
+  {% if week.notes %}<p>{{ week.notes|linebreaksbr }}</p>{% endif %}
+
+  {% for day in week.days.all %}
+  <h3 class="mt-1">{{ day.name }}{% if day.focus %} <span class="muted">· {{ day.focus }}</span>{% endif %}</h3>
+  {% if day.warmup_notes %}<p class="muted">Warm-up: {{ day.warmup_notes }}</p>{% endif %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>#</th><th>Exercise</th><th>Sets×Reps</th><th>Weight</th><th>Effort</th><th>Rest</th><th>Notes</th></tr></thead>
+    <tbody>
+    {% for we in day.exercises.all %}
+      {% if we.active %}
+      <tr {% if we.superset_group %}class="superset-tag"{% endif %}>
+        <td>{{ we.order }}{% if we.superset_group %}<span class="badge badge-purple">SS {{ we.superset_group }}</span>{% endif %}</td>
+        <td><a href="{% url 'exercises:detail' we.exercise.slug %}">{{ we.exercise.name }}</a>
+          {% if we.optional %}<span class="badge">optional</span>{% endif %}
+          {% if we.warmup_sets %}<span class="muted"> +{{ we.warmup_sets }} warm-up</span>{% endif %}</td>
+        <td>{{ we.target_sets }}×{{ we.rep_target_display }}</td>
+        <td>{% if we.target_weight_lb %}{{ we.target_weight_lb }} lb{% elif we.target_percentage %}{{ we.target_percentage }}%{% else %}—{% endif %}</td>
+        <td>{{ we.effort_display|default:"—" }}{% if we.tempo %} · {{ we.tempo }}{% endif %}</td>
+        <td>{% if we.rest_seconds %}{{ we.rest_seconds }}s{% else %}—{% endif %}</td>
+        <td class="muted">{{ we.client_visible_notes|truncatechars:60 }}</td>
+      </tr>
+      {% endif %}
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% empty %}
+  <p class="muted">No workout days defined for this week.</p>
+  {% endfor %}
+</div>
+{% endfor %}
+<p class="muted">Progression: recommendations are generated from your logged performance and
+  applied by your coach — your prescription only changes with their approval.
+  See your <a href="{% url 'calendar_app:week' %}">calendar</a> for scheduled dates.</p>
+{% endif %}
+{% endblock %}

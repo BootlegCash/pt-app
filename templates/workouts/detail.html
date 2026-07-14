@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ session.title }} — {{ session.date }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ session.title }}</h1>
+    <span class="muted">{{ session.date|date:"l, M j, Y" }}
+      {% if session.duration_minutes %} · {{ session.duration_minutes }} min{% endif %}
+      {% if coach_view %} · {{ client.display_label }}{% endif %}</span>
+  </div>
+  <span class="badge {% if session.status == 'completed' %}badge-green{% elif session.status == 'partial' %}badge-yellow{% else %}badge-blue{% endif %}">{{ session.get_status_display }}</span>
+</div>
+
+{% if prs %}
+<div class="alert alert-success">🎉 Personal records:
+  {% for pr in prs %}{{ pr.exercise.name }} ({{ pr.get_record_type_display }}: {{ pr.value }}){% if not forloop.last %}, {% endif %}{% endfor %}
+</div>
+{% endif %}
+
+<div class="card-grid">
+  {% if session.readiness_average %}<div class="metric"><div class="label">Readiness</div><div class="value">{{ session.readiness_average }}/5</div></div>{% endif %}
+  {% if session.session_difficulty %}<div class="metric"><div class="label">Difficulty</div><div class="value">{{ session.session_difficulty }}/10</div></div>{% endif %}
+  {% if session.pump_rating %}<div class="metric"><div class="label">Pump</div><div class="value">{{ session.pump_rating }}/5</div></div>{% endif %}
+  {% if session.performance_rating %}<div class="metric"><div class="label">Performance</div><div class="value">{{ session.performance_rating }}/5</div></div>{% endif %}
+</div>
+
+{% for exercise, logs in grouped %}
+<div class="card">
+  <h3>{{ exercise.name }}</h3>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Set</th><th>Weight</th><th>Reps</th><th>RIR/RPE</th><th>Est. 1RM</th><th>Status</th><th>Notes</th></tr></thead>
+    <tbody>
+    {% for log in logs %}
+    <tr>
+      <td>{{ log.set_number }}{% if log.is_extra %} <span class="badge badge-purple">extra</span>{% endif %}</td>
+      <td>{% if log.weight_lb %}{{ log.weight_lb }} lb{% elif log.distance_yards %}{{ log.distance_yards }} yd{% else %}—{% endif %}</td>
+      <td>{% if log.reps %}{{ log.reps }}{% elif log.duration_seconds %}{{ log.duration_seconds }}s{% else %}—{% endif %}</td>
+      <td>{% if log.rir is not None %}RIR {{ log.rir }}{% elif log.rpe is not None %}RPE {{ log.rpe }}{% else %}—{% endif %}</td>
+      <td>{{ log.estimated_1rm|floatformat:1|default:"—" }}</td>
+      <td>
+        {% if log.failed %}<span class="badge badge-red">failed</span>
+        {% elif log.completed %}<span class="badge badge-green">done</span>
+        {% else %}<span class="badge">skipped</span>{% endif %}
+      </td>
+      <td class="muted">{{ log.notes }}{% if log.substitution_request %} <span class="badge badge-yellow">sub requested</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% endfor %}
+
+{% if pain_reports %}
+<div class="card">
+  <h2>Pain reported</h2>
+  {% for report in pain_reports %}
+  <p class="mb-0"><span class="badge badge-red">{{ report.severity }}/10</span>
+    {{ report.body_location }} — {{ report.get_pain_type_display }}
+    {% if report.exercise %} during {{ report.exercise.name }}{% endif %}
+    {% if report.affected_performance %} · affected performance{% endif %}
+    {% if report.notes %}<br><span class="muted">{{ report.notes }}</span>{% endif %}</p>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if session.notes %}
+<div class="card"><h2>Session notes</h2><p class="mb-0">{{ session.notes|linebreaksbr }}</p></div>
+{% endif %}
+{% endblock %}

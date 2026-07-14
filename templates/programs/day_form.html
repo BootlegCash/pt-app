@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{% if day %}Edit day{% else %}New day{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% if day %}Edit {{ day.name }}{% else %}New workout day{% endif %}</h1>
+  <span class="muted">Week {{ week.week_number }} · {{ week.program.name }}</span>
+</div>
+<div class="card">
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "partials/form.html" with form=form %}
+    <p class="helptext">Weekday: 0=Monday … 6=Sunday (used to place sessions on the calendar).</p>
+    <button type="submit" class="btn btn-primary">Save day</button>
+    <a class="btn" href="{% url 'programs:builder_detail' week.program.uuid %}">Cancel</a>
+  </form>
+</div>
+{% endblock %}

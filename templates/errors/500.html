@@ -1,0 +1,4 @@
+{% extends "base.html" %}
+{% block title %}Something broke{% endblock %}
+{% block content %}{% include "errors/_error_body.html" with code="500" text="Something went wrong on our side. Please try again." %}{% endblock %}
+{% block content_public %}{% include "errors/_error_body.html" with code="500" text="Something went wrong on our side. Please try again." %}{% endblock %}

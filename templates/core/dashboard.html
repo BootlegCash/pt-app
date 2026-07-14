@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="row">
+    <div class="avatar" aria-hidden="true">
+      {% if profile and profile.profile_photo %}
+        <img src="{% url 'profiles:photo' user.uuid %}" alt="">
+      {% else %}{{ user.initials }}{% endif %}
+    </div>
+    <div>
+      <h1>{{ profile.name|default:user.display_label }}</h1>
+      <span class="muted">
+        {% if profile %}{{ profile.get_training_goal_display }}{% endif %}
+        {% if profile.current_weight_lb %} · {{ profile.current_weight_lb }} lb{% endif %}
+      </span>
+    </div>
+  </div>
+  {% for session in todays_sessions %}
+    {% if session.workout_day %}
+      <a class="btn btn-primary" href="{% url 'calendar_app:day_detail' session.uuid %}">▶ Today: {{ session.title }}</a>
+    {% endif %}
+  {% empty %}
+    <span class="badge">Rest day — nothing scheduled today</span>
+  {% endfor %}
+</div>
+
+<div class="card-grid">
+  <div class="metric">
+    <div class="label">Current program</div>
+    <div class="value" style="font-size:1rem">{{ program.name|default:"—" }}</div>
+    {% if current_week %}<div class="sub">Week {{ current_week }} of {{ program.number_of_weeks }}</div>{% endif %}
+  </div>
+  <div class="metric">
+    <div class="label">Next workout</div>
+    <div class="value" style="font-size:1rem">
+      {% if next_session %}{{ next_session.title }}{% else %}—{% endif %}
+    </div>
+    {% if next_session %}<div class="sub">{{ next_session.date|date:"D, M j" }}</div>{% endif %}
+  </div>
+  <div class="metric">
+    <div class="label">Last workout</div>
+    <div class="value" style="font-size:1rem">{% if last_workout %}{{ last_workout.title }}{% else %}—{% endif %}</div>
+    {% if last_workout %}<div class="sub">{{ last_workout.date|date:"M j" }} · {{ last_workout.get_status_display }}</div>{% endif %}
+  </div>
+  <div class="metric">
+    <div class="label">Latest PR</div>
+    <div class="value" style="font-size:1rem">
+      {% if latest_pr %}{{ latest_pr.exercise.name }}{% else %}—{% endif %}
+    </div>
+    {% if latest_pr %}<div class="sub">{{ latest_pr.get_record_type_display }}: {{ latest_pr.value }} · {{ latest_pr.date|date:"M j" }}</div>{% endif %}
+  </div>
+  <div class="metric">
+    <div class="label">Last recorded max</div>
+    <div class="value" style="font-size:1rem">
+      {% if latest_max %}{{ latest_max.exercise.name }} {{ latest_max.best_value }} lb{% else %}—{% endif %}
+    </div>
+    {% if latest_max %}<div class="sub">{{ latest_max.date|date:"M j, Y" }}</div>{% endif %}
+  </div>
+  <div class="metric">
+    <div class="label">Bodyweight</div>
+    <div class="value">{% if bodyweight %}{{ bodyweight.1 }} lb{% else %}—{% endif %}</div>
+    {% if weight_trend is not None %}
+      <div class="sub">{% if weight_trend > 0 %}+{% endif %}{{ weight_trend }} lb over last readings</div>
+    {% endif %}
+  </div>
+  <div class="metric">
+    <div class="label">This week</div>
+    <div class="value">{{ adherence.completed }}/{{ adherence.scheduled }}</div>
+    <div class="sub">workouts completed</div>
+  </div>
+  <div class="metric">
+    <div class="label">Readiness</div>
+    <div class="value">{% if readiness %}{{ readiness }}/5{% else %}—{% endif %}</div>
+    <div class="sub">recent average</div>
+  </div>
+</div>
+
+<h2 class="mt-1">Go to</h2>
+<div class="card-grid">
+  <a class="navcard" href="{% url 'profiles:me' %}"><span class="icon" aria-hidden="true">👤</span><div class="title">Profile</div></a>
+  <a class="navcard" href="{% url 'calendar_app:week' %}"><span class="icon" aria-hidden="true">📅</span><div class="title">Calendar</div></a>
+  <a class="navcard" href="{% url 'programs:my_program' %}"><span class="icon" aria-hidden="true">📋</span><div class="title">Current Program</div></a>
+  <a class="navcard" href="{% url 'workouts:history' %}"><span class="icon" aria-hidden="true">🏋️</span><div class="title">Workout History</div></a>
+  <a class="navcard" href="{% url 'progress:maxes' %}"><span class="icon" aria-hidden="true">🏆</span><div class="title">Strength &amp; PRs</div></a>
+  <a class="navcard" href="{% url 'profiles:measurements' %}"><span class="icon" aria-hidden="true">📏</span><div class="title">Measurements</div></a>
+  <a class="navcard" href="{% url 'progress:charts' %}"><span class="icon" aria-hidden="true">📈</span><div class="title">Progress Charts</div></a>
+  <a class="navcard" href="{% url 'nutrition:me' %}"><span class="icon" aria-hidden="true">🍽️</span><div class="title">Nutrition Targets</div></a>
+  <a class="navcard" href="{% url 'supplements:me' %}"><span class="icon" aria-hidden="true">💊</span><div class="title">Supplements</div></a>
+  <a class="navcard" href="{% url 'imports:my_files' %}"><span class="icon" aria-hidden="true">📁</span><div class="title">Uploaded Files</div></a>
+</div>
+{% endblock %}

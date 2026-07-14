@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}{{ program.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ program.name }}</h1>
+    <span class="muted">{{ program.get_main_goal_display }} ·
+      <span class="badge {% if program.status == 'active' %}badge-green{% elif program.status == 'draft' %}badge-yellow{% else %}badge{% endif %}">{{ program.get_status_display }}</span>
+      {% if program.assigned_to %} · assigned to {{ program.assigned_to.display_label }}{% endif %}
+    </span>
+  </div>
+  <div class="row">
+    <a class="btn btn-sm" href="{% url 'programs:builder_edit' program.uuid %}">Edit details</a>
+    <form method="post" action="{% url 'programs:builder_copy' program.uuid %}">{% csrf_token %}
+      <button class="btn btn-sm" type="submit">Duplicate</button></form>
+  </div>
+</div>
+
+{% if program.coach_notes %}
+<div class="alert alert-warning"><strong>Private coach notes:</strong> {{ program.coach_notes|linebreaksbr }}</div>
+{% endif %}
+
+{% for week in program.weeks.all %}
+<div class="card">
+  <div class="spread">
+    <h2 class="mb-0">Week {{ week.week_number }}{% if week.title %} — {{ week.title }}{% endif %}
+      {% if week.deload %}<span class="badge badge-yellow">Deload</span>{% endif %}
+      {% if week.testing_week %}<span class="badge badge-purple">Testing</span>{% endif %}
+    </h2>
+    <div class="row">
+      <a class="btn btn-sm" href="{% url 'programs:week_edit' week.id %}">Edit week</a>
+      <form method="post" action="{% url 'programs:week_copy' week.id %}">{% csrf_token %}
+        <button class="btn btn-sm" type="submit" title="Copy this week's days to a new week">Copy week</button></form>
+      <a class="btn btn-sm btn-primary" href="{% url 'programs:day_create' week.id %}">＋ Day</a>
+    </div>
+  </div>
+  {% if week.focus %}<p class="muted">{{ week.focus }}</p>{% endif %}
+
+  {% for day in week.days.all %}
+  <div class="card" style="background:var(--bg-raised)">
+    <div class="spread">
+      <h3 class="mb-0">{{ day.name }}{% if day.focus %} <span class="muted">· {{ day.focus }}</span>{% endif %}
+        {% if day.weekday_name %}<span class="badge">{{ day.weekday_name }}</span>{% endif %}
+      </h3>
+      <div class="row">
+        <a class="btn btn-sm" href="{% url 'programs:day_edit' day.id %}">Edit</a>
+        <form method="post" action="{% url 'programs:day_copy' day.id %}">{% csrf_token %}
+          <button class="btn btn-sm" type="submit">Copy</button></form>
+        <form method="post" action="{% url 'programs:day_delete' day.id %}" data-confirm="Delete this workout day and its exercises?">{% csrf_token %}
+          <button class="btn btn-sm btn-danger" type="submit">Delete</button></form>
+        <a class="btn btn-sm btn-primary" href="{% url 'programs:exercise_create' day.id %}">＋ Exercise</a>
+      </div>
+    </div>
+    {% if day.exercises.all %}
+    <div class="table-wrap"><table class="table">
+      <thead><tr><th></th><th>Exercise</th><th>Sets×Reps</th><th>Load</th><th>Effort</th><th>Progression</th><th></th></tr></thead>
+      <tbody>
+      {% for we in day.exercises.all %}
+      <tr {% if not we.active %}style="opacity:.5"{% endif %}>
+        <td>
+          <form method="post" action="{% url 'programs:exercise_move' we.uuid 'up' %}" style="display:inline">{% csrf_token %}<button class="btn btn-sm" aria-label="Move up">↑</button></form>
+          <form method="post" action="{% url 'programs:exercise_move' we.uuid 'down' %}" style="display:inline">{% csrf_token %}<button class="btn btn-sm" aria-label="Move down">↓</button></form>
+        </td>
+        <td>{{ we.exercise.name }}
+          {% if we.superset_group %}<span class="badge badge-purple">SS {{ we.superset_group }}</span>{% endif %}
+          {% if we.optional %}<span class="badge">optional</span>{% endif %}
+        </td>
+        <td>{{ we.target_sets }}×{{ we.rep_target_display }}</td>
+        <td>{% if we.target_weight_lb %}{{ we.target_weight_lb }} lb{% elif we.target_percentage %}{{ we.target_percentage }}%{% else %}—{% endif %}</td>
+        <td>{{ we.effort_display|default:"—" }}</td>
+        <td class="muted">{{ we.get_progression_method_display|truncatechars:26 }}</td>
+        <td>
+          <a class="btn btn-sm" href="{% url 'programs:exercise_edit' we.uuid %}">Edit</a>
+          <form method="post" action="{% url 'programs:exercise_delete' we.uuid %}" style="display:inline" data-confirm="Remove {{ we.exercise.name }}?">{% csrf_token %}
+            <button class="btn btn-sm btn-danger" type="submit">✕</button></form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}<p class="muted mb-0">No exercises yet.</p>{% endif %}
+  </div>
+  {% empty %}<p class="muted">No days in this week yet.</p>{% endfor %}
+</div>
+{% endfor %}
+
+<div class="card">
+  <h2>Assign this program</h2>
+  <p class="muted">Assigning replaces the client's current program pointer and regenerates
+    their scheduled (not yet completed) calendar sessions.</p>
+  <a class="btn" href="{% url 'coaching:client_list' %}">Choose a client from your list →</a>
+</div>
+{% endblock %}

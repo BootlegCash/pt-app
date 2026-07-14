@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ exercise.name }} history{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ exercise.name }}</h1>
+  <a class="btn btn-sm" href="{% url 'exercises:detail' exercise.slug %}">Exercise info</a>
+</div>
+
+<div class="card-grid">
+  <div class="metric"><div class="label">Sessions</div><div class="value">{{ total_sessions }}</div></div>
+  <div class="metric"><div class="label">Best set</div>
+    <div class="value" style="font-size:1rem">{% if best_set %}{{ best_set.weight_lb|floatformat:"-1" }}×{{ best_set.reps }}{% else %}—{% endif %}</div>
+    {% if best_set %}<div class="sub">{{ best_set.session.date|date:"M j, Y" }}</div>{% endif %}</div>
+  <div class="metric"><div class="label">Best est. 1RM (Epley)</div><div class="value">{{ best_e1rm_epley|default:"—" }}</div>
+    {% if best_e1rm_brzycki %}<div class="sub">Brzycki: {{ best_e1rm_brzycki }}</div>{% endif %}</div>
+  <div class="metric"><div class="label">Tested max</div>
+    <div class="value">{% if tested_max %}{{ tested_max.weight_lb }} lb{% else %}—{% endif %}</div>
+    {% if tested_max %}<div class="sub">{{ tested_max.date|date:"M j, Y" }}</div>{% endif %}</div>
+</div>
+
+<div class="card">
+  <h2>Estimated 1RM trend</h2>
+  <div class="chart-box">
+    <canvas data-chart-url="{% url 'progress:chart_data' 'e1rm' %}?exercise={{ exercise.slug }}"
+            role="img" aria-label="Estimated 1RM trend for {{ exercise.name }}"></canvas>
+  </div>
+  <p class="disclaimer mb-0">Estimated 1RM uses the Epley formula by default (Brzycki also
+    shown above). Estimates from higher-rep sets are less precise.</p>
+</div>
+
+{% for entry in sessions %}
+<div class="card">
+  <h3>{{ entry.date|date:"l, M j, Y" }}</h3>
+  <div class="table-wrap"><table class="table">
+    <tbody>
+    {% for log in entry.sets %}
+    <tr>
+      <td>Set {{ log.set_number }}</td>
+      <td>{% if log.weight_lb %}{{ log.weight_lb }} lb × {{ log.reps }}{% elif log.duration_seconds %}{{ log.duration_seconds }}s{% else %}—{% endif %}</td>
+      <td>{% if log.rir is not None %}RIR {{ log.rir }}{% elif log.rpe is not None %}RPE {{ log.rpe }}{% endif %}</td>
+      <td class="muted">{{ log.notes }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% empty %}
+<div class="empty"><span class="icon" aria-hidden="true">📖</span>No logged sets for this exercise yet.</div>
+{% endfor %}
+{% endblock %}
+{% block scripts %}
+{% load static %}<script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/charts.js' %}"></script>
+{% endblock %}

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Log: {{ session.title }}{% endblock %}
+{% block content %}
+<div id="logger"
+     data-save-url="{% url 'workouts:autosave' session.uuid %}"
+     data-remove-url="{% url 'workouts:remove_extra_set' session.uuid %}"
+     data-csrf="{{ csrf_token }}">
+<div class="page-head">
+  <div>
+    <h1>{{ session.title }}</h1>
+    <span class="muted">{{ session.date|date:"D, M j" }} · sets autosave as you type</span>
+  </div>
+</div>
+
+{% for card in cards %}
+<div class="card exercise-card {% if card.prescription.superset_group %}superset-tag{% endif %}"
+     data-prescription="{{ card.prescription.uuid }}">
+  <div class="ex-head">
+    <h3 class="mb-0">
+      {{ forloop.counter }}. {{ card.prescription.exercise.name }}
+      {% if card.prescription.superset_group %}<span class="badge badge-purple">SS {{ card.prescription.superset_group }}</span>{% endif %}
+      {% if card.prescription.optional %}<span class="badge">optional</span>{% endif %}
+    </h3>
+    <span class="save-status" aria-live="polite"></span>
+  </div>
+  <div class="target-line">
+    Target: {{ card.prescription.target_sets }}×{{ card.prescription.rep_target_display }}
+    {% if card.prescription.target_weight_lb %} @ {{ card.prescription.target_weight_lb }} lb{% endif %}
+    {% if card.prescription.target_percentage %} @ {{ card.prescription.target_percentage }}%{% endif %}
+    {% if card.prescription.effort_display %} · {{ card.prescription.effort_display }}{% endif %}
+    {% if card.prescription.rest_seconds %} · rest {{ card.prescription.rest_seconds }}s{% endif %}
+    {% if card.prescription.tempo %} · tempo {{ card.prescription.tempo }}{% endif %}
+    {% if card.prescription.warmup_sets %} · {{ card.prescription.warmup_sets }} warm-up set{{ card.prescription.warmup_sets|pluralize }} first{% endif %}
+  </div>
+  {% if card.prescription.client_visible_notes %}
+    <p class="muted" style="font-size:.85rem">📝 {{ card.prescription.client_visible_notes }}</p>
+  {% endif %}
+  <p class="faint" style="font-size:.8rem">
+    {% if card.previous %}Last: {{ card.previous.summary }} ({{ card.previous.date|date:"M j" }}){% else %}First time logging this exercise{% endif %}
+    {% if card.best %} · Best: {{ card.best.weight_lb|floatformat:"-1" }}×{{ card.best.reps }}{% endif %}
+  </p>
+
+  <div class="set-row" aria-hidden="true" style="margin-bottom:2px">
+    <div class="setnum faint">#</div>
+    <div class="faint" style="font-size:.72rem;text-align:center">Weight (lb)</div>
+    <div class="faint" style="font-size:.72rem;text-align:center">Reps</div>
+    <div class="faint" style="font-size:.72rem;text-align:center">RIR / RPE</div>
+    <div class="faint" style="font-size:.72rem;text-align:center">✓</div>
+  </div>
+  {% for row in card.rows %}
+  <div class="set-row" data-set-number="{{ row.number }}" data-set-uuid="{{ row.log.uuid|default:'' }}">
+    <div class="setnum">{{ row.number }}</div>
+    <input type="number" inputmode="decimal" step="0.5" min="0" data-field="weight"
+           value="{{ row.log.weight_lb|default_if_none:'' }}" aria-label="Set {{ row.number }} weight (lb)">
+    <input type="number" inputmode="numeric" min="0" max="200" data-field="reps"
+           value="{{ row.log.reps|default_if_none:'' }}" aria-label="Set {{ row.number }} reps">
+    <input type="number" inputmode="decimal" step="0.5" min="0" max="10" data-field="rir"
+           value="{{ row.log.rir|default_if_none:'' }}" aria-label="Set {{ row.number }} RIR"
+           placeholder="{% if card.prescription.target_rpe is not None %}RPE{% else %}RIR{% endif %}">
+    <div class="set-check">
+      <input type="checkbox" data-field="completed" {% if row.log.completed %}checked{% endif %}
+             aria-label="Set {{ row.number }} completed">
+    </div>
+    <input type="hidden" data-field="rpe" value="{{ row.log.rpe|default_if_none:'' }}">
+    <input type="hidden" data-field="distance" value="{{ row.log.distance_yards|default_if_none:'' }}">
+    <input type="hidden" data-field="duration" value="{{ row.log.duration_seconds|default_if_none:'' }}">
+    <input type="hidden" data-field="substitution" value="{{ row.log.substitution_request|default:'' }}">
+    <input type="text" data-field="notes" value="{{ row.log.notes|default:'' }}"
+           placeholder="Set notes / substitution request…" aria-label="Set {{ row.number }} notes"
+           style="grid-column: 1 / 4; min-height:38px; text-align:left">
+    <label class="row faint" style="margin:0;font-size:.7rem;justify-content:center" title="Mark set as failed">
+      <input type="checkbox" data-field="failed" {% if row.log.failed %}checked{% endif %}
+             aria-label="Set {{ row.number }} failed"> fail
+    </label>
+    <button type="button" class="btn btn-sm btn-danger" data-remove-set
+            {% if not row.log.is_extra %}hidden{% endif %} aria-label="Remove extra set">✕</button>
+  </div>
+  {% endfor %}
+  <button type="button" class="btn btn-sm" data-add-set>＋ Add extra set</button>
+</div>
+{% empty %}
+<div class="empty"><span class="icon" aria-hidden="true">🤔</span>
+  This session has no prescribed exercises — ask your coach.</div>
+{% endfor %}
+
+<div class="sticky-actions">
+  <a class="btn btn-success btn-block" href="{% url 'workouts:complete' session.uuid %}">Finish workout ✓</a>
+</div>
+</div>
+{% endblock %}
+{% block scripts %}
+{% load static %}<script src="{% static 'js/autosave.js' %}"></script>
+{% endblock %}

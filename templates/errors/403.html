@@ -1,0 +1,4 @@
+{% extends "base.html" %}
+{% block title %}Not allowed{% endblock %}
+{% block content %}{% include "errors/_error_body.html" with code="403" text="You don't have access to that page." %}{% endblock %}
+{% block content_public %}{% include "errors/_error_body.html" with code="403" text="You don't have access to that page." %}{% endblock %}

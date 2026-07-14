@@ -1,0 +1,22 @@
+<div class="table-wrap"><table class="table">
+  <thead><tr><th>Week</th><th>Day</th><th>Workout</th><th>Exercise</th><th>Sets</th>
+    <th>Reps</th><th>Weight</th><th>%</th><th>RIR</th><th>RPE</th><th>Rest</th><th>Notes</th></tr></thead>
+  <tbody>
+  {% for row in rows %}
+  <tr>
+    <td>{{ row.week }}</td>
+    <td>{{ row.day }}</td>
+    <td>{{ row.workout_name|default:"—" }}</td>
+    <td><strong>{{ row.exercise }}</strong>{% if row.superset %} <span class="badge badge-purple">SS {{ row.superset }}</span>{% endif %}</td>
+    <td>{{ row.sets }}</td>
+    <td>{% if row.rep_min %}{{ row.rep_min }}{% if row.rep_max and row.rep_max != row.rep_min %}–{{ row.rep_max }}{% endif %}{% elif row.rep_text %}{{ row.rep_text }}{% else %}—{% endif %}</td>
+    <td>{{ row.weight|default_if_none:"—" }}</td>
+    <td>{{ row.percentage|default_if_none:"—" }}</td>
+    <td>{{ row.rir|default_if_none:"—" }}</td>
+    <td>{{ row.rpe|default_if_none:"—" }}</td>
+    <td>{% if row.rest_seconds %}{{ row.rest_seconds }}s{% else %}—{% endif %}</td>
+    <td class="muted">{{ row.notes|truncatechars:30 }}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table></div>

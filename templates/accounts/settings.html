@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Account settings{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Account settings</h1></div>
+
+<div class="card">
+  <h2>Account</h2>
+  <p><strong>{{ user.display_label }}</strong> · {{ user.username }} · {{ user.email }}</p>
+  <p class="muted">Profile details (measurements, goals, program) are managed by your coach.</p>
+</div>
+
+<div class="card">
+  <h2>Change password</h2>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "partials/form.html" with form=form %}
+    <button type="submit" class="btn btn-primary">Change password</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Your data</h2>
+  <p><a class="btn" href="{% url 'accounts:export_data' %}">⬇️ Download my data (JSON)</a></p>
+  <p class="muted mb-0">Exports your profile, measurements, workouts, PRs, nutrition targets,
+    supplements, and uploads.</p>
+</div>
+
+<div class="card">
+  <h2>Deactivate account</h2>
+  <p class="muted">Deactivating disables login. Your data is kept; ask your administrator to
+    reactivate the account or permanently delete your data.</p>
+  <form method="post" action="{% url 'accounts:deactivate' %}"
+        data-confirm="Deactivate your account? You will be logged out immediately.">
+    {% csrf_token %}
+    <div class="form-row">
+      <label for="deactivate-password">Confirm with your password</label>
+      <input type="password" id="deactivate-password" name="password"
+             autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="btn btn-danger">Deactivate my account</button>
+  </form>
+</div>
+{% endblock %}

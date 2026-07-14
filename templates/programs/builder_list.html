@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Program builder{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Program builder</h1>
+  <a class="btn btn-primary" href="{% url 'programs:builder_create' %}">＋ New program</a></div>
+
+{% if programs %}
+<div class="card">
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Program</th><th>Status</th><th>Goal</th><th>Weeks</th><th>Assigned to</th><th>Updated</th></tr></thead>
+    <tbody>
+    {% for program in programs %}
+    <tr>
+      <td><a href="{% url 'programs:builder_detail' program.uuid %}">{{ program.name }}</a></td>
+      <td><span class="badge {% if program.status == 'active' %}badge-green{% elif program.status == 'draft' %}badge-yellow{% else %}badge{% endif %}">{{ program.get_status_display }}</span></td>
+      <td>{{ program.get_main_goal_display }}</td>
+      <td>{{ program.number_of_weeks }}</td>
+      <td>{% if program.assigned_to %}{{ program.assigned_to.display_label }}{% else %}<span class="muted">unassigned</span>{% endif %}</td>
+      <td class="muted">{{ program.updated_at|date:"M j, Y" }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% else %}
+<div class="empty"><span class="icon" aria-hidden="true">🛠️</span>No programs yet — build your first one.</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Import — {{ job.original_filename }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>{{ job.original_filename }}</h1>
+    <span class="muted">Uploaded {{ job.created_at|date:"M j, Y" }} by {{ job.user.display_label }}</span></div>
+  <span class="badge {% if job.status == 'approved' or job.status == 'imported' %}badge-green{% elif job.status == 'rejected' or job.status == 'error' %}badge-red{% elif job.status == 'submitted' %}badge-yellow{% else %}badge-blue{% endif %}">{{ job.get_status_display }}</span>
+</div>
+
+{% if job.error_message %}<div class="alert alert-error">{{ job.error_message }}</div>{% endif %}
+{% if job.approval_notes %}
+<div class="card"><h2>Coach notes</h2><p class="mb-0">{{ job.approval_notes }}</p></div>
+{% endif %}
+{% if job.created_program and user.is_coach or job.created_program and user.is_staff %}
+<div class="alert alert-success">Draft program created:
+  <a href="{% url 'programs:builder_detail' job.created_program.uuid %}">{{ job.created_program.name }}</a></div>
+{% endif %}
+
+{% if rows %}
+<div class="card">
+  <h2>Parsed plan</h2>
+  {% include "imports/_parsed_table.html" with rows=rows %}
+</div>
+{% endif %}
+{% endblock %}

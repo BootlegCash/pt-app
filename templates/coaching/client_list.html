@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Clients{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Clients</h1>
+  {% if user.is_staff %}<a class="btn btn-primary btn-sm" href="{% url 'coaching:create_user' %}">＋ Create user</a>{% endif %}
+</div>
+{% if clients %}
+<div class="card-grid-wide">
+  {% for client in clients %}
+  <a class="navcard" href="{% url 'coaching:client_detail' client.uuid %}">
+    <div class="row">
+      <div class="avatar" aria-hidden="true">{{ client.initials }}</div>
+      <div>
+        <div class="title">{{ client.display_label }}</div>
+        <div class="sub">{{ client.email }}</div>
+      </div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty"><span class="icon" aria-hidden="true">👥</span>No active clients.</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Measurements{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>Measurements</h1>
+  {% if latest %}<span class="muted">Last measured {{ latest.date|date:"M j, Y" }}</span>{% endif %}
+</div>
+
+{% if not measurements %}
+  <div class="empty"><span class="icon" aria-hidden="true">📏</span>
+    No measurements yet. Your coach records these during check-ins.</div>
+{% else %}
+
+<div class="card">
+  <h2>Change since previous measurement</h2>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Site</th><th>Current</th><th>Previous</th><th>Change</th></tr></thead>
+    <tbody>
+    {% for row in changes %}
+      {% if row.current is not None %}
+      <tr>
+        <td>{{ row.label }}</td>
+        <td><strong>{{ row.current }}</strong></td>
+        <td class="muted">{{ row.previous|default:"—" }}</td>
+        <td>{% if row.change is not None %}
+          <span class="badge {% if row.change > 0 %}badge-blue{% elif row.change < 0 %}badge-yellow{% else %}badge-green{% endif %}">
+            {% if row.change > 0 %}+{% endif %}{{ row.change|floatformat:2 }}</span>
+          {% else %}—{% endif %}</td>
+      </tr>
+      {% endif %}
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+<div class="card">
+  <h2>Symmetry (latest)</h2>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Pair</th><th>Left</th><th>Right</th><th>R−L</th></tr></thead>
+    <tbody>
+    {% for row in symmetry %}
+      <tr><td>{{ row.label }}</td><td>{{ row.left|default:"—" }}</td>
+        <td>{{ row.right|default:"—" }}</td>
+        <td>{% if row.diff is not None %}{{ row.diff|floatformat:2 }}"{% else %}—{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+<div class="card">
+  <h2>Trend</h2>
+  <div class="form-row" style="max-width:280px">
+    <label for="measure-field">Measurement</label>
+    <select id="measure-field" data-chart-select="measure-chart-box">
+      <option value="{% url 'progress:chart_data' 'bodyweight' %}">Bodyweight</option>
+      <option value="{% url 'progress:chart_data' 'measurement' %}?field=waist">Waist</option>
+      <option value="{% url 'progress:chart_data' 'measurement' %}?field=chest">Chest</option>
+      <option value="{% url 'progress:chart_data' 'measurement' %}?field=hips">Hips</option>
+      <option value="{% url 'progress:chart_data' 'measurement' %}?field=left_arm">Left arm</option>
+      <option value="{% url 'progress:chart_data' 'measurement' %}?field=right_arm">Right arm</option>
+      <option value="{% url 'progress:chart_data' 'measurement' %}?field=left_thigh">Left thigh</option>
+      <option value="{% url 'progress:chart_data' 'measurement' %}?field=right_thigh">Right thigh</option>
+      <option value="{% url 'progress:chart_data' 'measurement' %}?field=estimated_body_fat">Body fat (rough est.)</option>
+    </select>
+  </div>
+  <div class="chart-box" id="measure-chart-box">
+    <canvas data-chart-url="{% url 'progress:chart_data' 'bodyweight' %}" aria-label="Measurement trend chart" role="img"></canvas>
+  </div>
+</div>
+
+<div class="card">
+  <h2>History</h2>
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Date</th><th>BW (lb)</th><th>Waist</th><th>Chest</th><th>Hips</th>
+      <th>Arm L/R</th><th>Thigh L/R</th><th>BF% (est.)</th><th>Method</th></tr></thead>
+    <tbody>
+    {% for m in measurements %}
+      <tr>
+        <td>{{ m.date|date:"M j, Y" }}</td>
+        <td>{{ m.bodyweight_lb|default:"—" }}</td>
+        <td>{{ m.waist|default:"—" }}</td>
+        <td>{{ m.chest|default:"—" }}</td>
+        <td>{{ m.hips|default:"—" }}</td>
+        <td>{{ m.left_arm|default:"—" }}/{{ m.right_arm|default:"—" }}</td>
+        <td>{{ m.left_thigh|default:"—" }}/{{ m.right_thigh|default:"—" }}</td>
+        <td>{% if m.estimated_body_fat %}~{{ m.estimated_body_fat }}{% else %}—{% endif %}</td>
+        <td class="muted">{{ m.get_measurement_method_display }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  <p class="disclaimer mb-0">Circumference data is used for progress comparison, waist trend,
+    symmetry, and rough body-composition estimates only — it cannot measure exact muscle mass.</p>
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% load static %}<script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/charts.js' %}"></script>
+{% endblock %}

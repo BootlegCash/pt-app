@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Coach dashboard{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Coach dashboard</h1>
+  <a class="btn btn-primary btn-sm" href="{% url 'programs:builder_list' %}">Program builder</a></div>
+
+<div class="card-grid">
+  <a class="metric" href="{% url 'coaching:progression_approvals' %}" style="text-decoration:none">
+    <div class="label">Progression approvals</div>
+    <div class="value">{{ pending_progressions }}</div><div class="sub">pending review</div></a>
+  <a class="metric" href="{% url 'coaching:pain_flags' %}" style="text-decoration:none">
+    <div class="label">Pain flags</div>
+    <div class="value" {% if pain_flags %}style="color:var(--red)"{% endif %}>{{ pain_flags }}</div>
+    <div class="sub">unreviewed</div></a>
+  <a class="metric" href="{% url 'imports:approvals' %}" style="text-decoration:none">
+    <div class="label">Upload approvals</div>
+    <div class="value">{{ pending_imports }}</div><div class="sub">awaiting review</div></a>
+  <div class="metric"><div class="label">Programs past end date</div>
+    <div class="value">{{ stale_programs }}</div><div class="sub">may need updates</div></div>
+</div>
+
+<h2 class="mt-1">Clients</h2>
+{% if summaries %}
+{% for s in summaries %}
+<div class="card">
+  <div class="spread">
+    <div class="row">
+      <div class="avatar" aria-hidden="true">{{ s.client.initials }}</div>
+      <div>
+        <h3 class="mb-0"><a href="{% url 'coaching:client_detail' s.client.uuid %}">{{ s.client.display_label }}</a></h3>
+        <span class="muted">{% if s.profile %}{{ s.profile.get_training_goal_display }}{% endif %}
+          {% if s.profile.current_program %} · {{ s.profile.current_program.name }}{% endif %}</span>
+      </div>
+    </div>
+    <div class="row">
+      {% if s.pain_flags %}<span class="badge badge-red">🚩 {{ s.pain_flags }} pain</span>{% endif %}
+      {% if s.pending_progressions %}<span class="badge badge-blue">{{ s.pending_progressions }} progressions</span>{% endif %}
+      {% if s.pending_imports %}<span class="badge badge-yellow">{{ s.pending_imports }} uploads</span>{% endif %}
+      {% if s.missed %}<span class="badge badge-red">{{ s.missed }} missed (14d)</span>{% endif %}
+      {% if s.recent_prs %}<span class="badge badge-green">{{ s.recent_prs }} PRs (14d)</span>{% endif %}
+      {% if s.recent_notes %}<span class="badge">{{ s.recent_notes }} new notes</span>{% endif %}
+    </div>
+  </div>
+  <div class="row muted" style="font-size:.85rem;margin-top:.4rem">
+    <span>This week: <strong>{{ s.adherence.completed }}/{{ s.adherence.scheduled }}</strong></span>
+    <span>Last workout: {% if s.last_workout %}{{ s.last_workout.date|date:"M j" }}{% else %}—{% endif %}</span>
+    <span>Next: {% if s.next_scheduled %}{{ s.next_scheduled.title }} {{ s.next_scheduled.date|date:"M j" }}{% else %}—{% endif %}</span>
+    {% if s.weight_trend is not None %}<span>BW: {% if s.weight_trend > 0 %}+{% endif %}{{ s.weight_trend|floatformat:1 }} lb</span>{% endif %}
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="empty"><span class="icon" aria-hidden="true">🧑‍🏫</span>No active clients yet.
+  {% if user.is_staff %}<a href="{% url 'coaching:create_user' %}">Create a user</a> and assign yourself as coach.{% endif %}</div>
+{% endif %}
+{% endblock %}

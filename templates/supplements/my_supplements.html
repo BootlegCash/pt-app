@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Supplements{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Supplement recommendations</h1></div>
+
+{% if recommendations %}
+  {% for rec in recommendations %}
+  <div class="card">
+    <div class="spread">
+      <h2 class="mb-0">{{ rec.supplement.name }}</h2>
+      <span class="badge badge-blue">{{ rec.supplement.get_category_display }}</span>
+    </div>
+    <p class="muted">{{ rec.supplement.purpose }}</p>
+    <div class="card-grid">
+      <div class="metric"><div class="label">Dose</div>
+        <div class="value" style="font-size:1rem">{{ rec.assigned_dose }} {{ rec.dose_unit }}</div></div>
+      {% if rec.timing %}<div class="metric"><div class="label">Timing</div>
+        <div class="value" style="font-size:1rem">{{ rec.timing }}</div></div>{% endif %}
+      {% if rec.frequency %}<div class="metric"><div class="label">Frequency</div>
+        <div class="value" style="font-size:1rem">{{ rec.frequency }}</div></div>{% endif %}
+    </div>
+    {% if rec.reason %}<p><strong>Why:</strong> {{ rec.reason }}</p>{% endif %}
+    {% if rec.supplement.warnings %}<div class="alert alert-warning"><strong>Cautions:</strong> {{ rec.supplement.warnings }}</div>{% endif %}
+    {% if rec.supplement.interactions %}<p class="muted"><strong>Interactions:</strong> {{ rec.supplement.interactions }}</p>{% endif %}
+    {% if rec.coach_notes %}<p class="mb-0"><strong>Coach notes:</strong> {{ rec.coach_notes }}</p>{% endif %}
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="empty"><span class="icon" aria-hidden="true">💊</span>
+    No supplement recommendations assigned. Your coach manages this list.</div>
+{% endif %}
+
+<div class="card">
+  <p class="disclaimer mb-0">{{ disclaimer }}</p>
+</div>
+{% endblock %}

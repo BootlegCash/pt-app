@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Calendar{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{% if manage %}{{ athlete.display_label }} — calendar{% else %}Weekly calendar{% endif %}</h1>
+  <div class="row">
+    {% if manage %}
+      <a class="btn btn-sm btn-primary" href="{% url 'calendar_app:coach_session_create' athlete.uuid %}">＋ Session</a>
+      <a class="btn btn-sm" href="{% url 'coaching:client_calendar' athlete.uuid %}?view=month">Month</a>
+    {% else %}
+      <a class="btn btn-sm" href="{% url 'calendar_app:month' %}">Month view</a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="spread">
+    {% if manage %}
+      <a class="btn btn-sm" href="{% url 'coaching:client_calendar' athlete.uuid %}?start={{ grid.prev_start|date:'Y-m-d' }}">← Prev</a>
+      <strong>Week of {{ grid.monday|date:"M j, Y" }}</strong>
+      <a class="btn btn-sm" href="{% url 'coaching:client_calendar' athlete.uuid %}?start={{ grid.next_start|date:'Y-m-d' }}">Next →</a>
+    {% else %}
+      <a class="btn btn-sm" href="{% url 'calendar_app:week' %}?start={{ grid.prev_start|date:'Y-m-d' }}">← Prev</a>
+      <strong>Week of {{ grid.monday|date:"M j, Y" }}</strong>
+      <a class="btn btn-sm" href="{% url 'calendar_app:week' %}?start={{ grid.next_start|date:'Y-m-d' }}">Next →</a>
+    {% endif %}
+  </div>
+  <div class="week-list mt-1">
+    {% for day in grid.days %}
+    <div class="day-row">
+      <div class="date-col {% if day.is_today %}today{% endif %}">
+        <div class="dow">{{ day.date|date:"D" }}</div>
+        <div class="num">{{ day.date|date:"j" }}</div>
+      </div>
+      <div style="flex:1">
+        {% for session in day.sessions %}
+          <div class="spread" style="margin-bottom:4px">
+            {% if manage %}
+              <span class="cal-pill {{ session.color_class }}" style="max-width:none">{{ session.title }}
+                <span class="muted">· {{ session.get_session_type_display }}</span></span>
+              <span class="row">
+                <a class="btn btn-sm" href="{% url 'calendar_app:coach_session_edit' session.uuid %}">Move/edit</a>
+                <form method="post" action="{% url 'calendar_app:coach_session_delete' session.uuid %}" data-confirm="Remove this session?">{% csrf_token %}
+                  <button class="btn btn-sm btn-danger">✕</button></form>
+              </span>
+            {% else %}
+              <a class="cal-pill {{ session.color_class }}" style="max-width:none;flex:1"
+                 href="{% url 'calendar_app:day_detail' session.uuid %}">{{ session.title }}
+                <span aria-hidden="true">·</span> {{ session.get_session_type_display }}</a>
+            {% endif %}
+          </div>
+        {% empty %}
+          <span class="faint">Rest</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div class="card">
+  <h3>Legend</h3>
+  <div class="row">
+    <span class="cal-pill cal-upcoming">Upcoming</span>
+    <span class="cal-pill cal-today">Today</span>
+    <span class="cal-pill cal-completed">Completed</span>
+    <span class="cal-pill cal-partial">Partially completed</span>
+    <span class="cal-pill cal-missed">Missed</span>
+    <span class="cal-pill cal-testing">Testing / max day</span>
+  </div>
+</div>
+{% endblock %}

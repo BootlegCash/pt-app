@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Create user{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Create user account</h1></div>
+<p class="muted">Public registration is disabled — this is the only way accounts are created.
+  The new user must change their password at first login.</p>
+
+{% if created %}
+<div class="card" style="border-color:var(--green)">
+  <h2>Account created ✓</h2>
+  <p><strong>Username:</strong> {{ created.user.username }}<br>
+     <strong>Temporary password:</strong> <code>{{ created.password }}</code></p>
+  <p class="muted mb-0">Share these credentials securely (not by plain email if avoidable).
+    This password is shown only once.</p>
+</div>
+{% endif %}
+
+<div class="card">
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% include "partials/form.html" with form=form %}
+    <button type="submit" class="btn btn-primary">Create account</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Strength &amp; PRs{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Strength &amp; personal records</h1></div>
+
+<div class="card">
+  <h2>Current maxes</h2>
+  {% if summaries %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Lift</th><th>Current</th><th>Previous</th><th>Change</th><th>BW ratio</th><th>Date</th></tr></thead>
+    <tbody>
+    {% for row in summaries %}
+      <tr>
+        <td><a href="{% url 'workouts:exercise_history' row.max.exercise.slug %}">{{ row.max.exercise.name }}</a></td>
+        <td><strong>{{ row.max.best_value }} lb</strong>
+          <span class="muted">{{ row.max.get_max_type_display }}{% if row.max.reps > 1 %} ({{ row.max.weight_lb }}×{{ row.max.reps }}){% endif %}</span></td>
+        <td class="muted">{% if row.previous %}{{ row.previous.best_value }} lb ({{ row.previous.date|date:"M j" }}){% else %}—{% endif %}</td>
+        <td>{% if row.change is not None %}<span class="badge {% if row.change >= 0 %}badge-green{% else %}badge-red{% endif %}">{% if row.change > 0 %}+{% endif %}{{ row.change|floatformat:1 }}</span>{% else %}—{% endif %}</td>
+        <td>{{ row.ratio|default:"—" }}</td>
+        <td class="muted">{{ row.max.date|date:"M j, Y" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<div class="empty"><span class="icon" aria-hidden="true">🏆</span>No maxes recorded yet — your coach records these.</div>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Personal records</h2>
+  {% if records %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Date</th><th>Exercise</th><th>Type</th><th>Value</th><th>Set</th><th>Previous</th></tr></thead>
+    <tbody>
+    {% for pr in records %}
+      <tr>
+        <td>{{ pr.date|date:"M j, Y" }}</td>
+        <td><a href="{% url 'workouts:exercise_history' pr.exercise.slug %}">{{ pr.exercise.name }}</a></td>
+        <td><span class="badge badge-purple">{{ pr.get_record_type_display }}</span></td>
+        <td><strong>{{ pr.value }}</strong></td>
+        <td class="muted">{% if pr.weight_lb %}{{ pr.weight_lb }}×{{ pr.reps }}{% endif %}</td>
+        <td class="muted">{{ pr.previous_value|default:"—" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<div class="empty"><span class="icon" aria-hidden="true">🎉</span>PRs appear automatically as you log workouts.</div>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Max history</h2>
+  {% if history %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Date</th><th>Exercise</th><th>Type</th><th>Weight×Reps</th><th>Est. 1RM</th><th>Tested</th><th>Notes</th></tr></thead>
+    <tbody>
+    {% for m in history %}
+      <tr>
+        <td>{{ m.date|date:"M j, Y" }}</td>
+        <td>{{ m.exercise.name }}</td>
+        <td class="muted">{{ m.get_max_type_display }}</td>
+        <td>{{ m.weight_lb }}×{{ m.reps }}</td>
+        <td>{{ m.estimated_1rm|default:"—" }}</td>
+        <td>{{ m.tested_1rm|default:"—" }}</td>
+        <td class="muted">{{ m.notes|truncatechars:40 }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}<div class="empty"><span class="icon" aria-hidden="true">📖</span>No max history yet.</div>{% endif %}
+</div>
+{% endblock %}

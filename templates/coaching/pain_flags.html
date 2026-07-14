@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Pain flags{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Pain flags</h1></div>
+<p class="muted">Client-reported pain awaiting your review. This is athlete-reported context,
+  not a diagnosis — refer out when symptoms are sharp, worsening, traumatic, neurological, or
+  function-limiting.</p>
+
+{% if reports %}
+{% for report in reports %}
+<div class="card">
+  <div class="spread">
+    <h3 class="mb-0">{{ report.session.user.display_label }} —
+      {{ report.body_location }} <span class="badge badge-red">{{ report.severity }}/10</span></h3>
+    <span class="muted">{{ report.created_at|date:"M j, Y" }}</span>
+  </div>
+  <p class="mb-0">
+    {{ report.get_pain_type_display }}
+    {% if report.exercise %} · during {{ report.exercise.name }}{% endif %}
+    {% if report.affected_performance %} · <strong>affected performance</strong>{% endif %}
+    {% if report.notes %}<br><span class="muted">{{ report.notes }}</span>{% endif %}
+  </p>
+  <div class="row mt-1">
+    <a class="btn btn-sm" href="{% url 'coaching:client_session_detail' report.session.user.uuid report.session.uuid %}">View session</a>
+    <form method="post" action="{% url 'coaching:pain_mark_reviewed' report.uuid %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-success btn-sm">Mark reviewed</button>
+    </form>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="empty"><span class="icon" aria-hidden="true">🎉</span>No unreviewed pain reports.</div>
+{% endif %}
+{% endblock %}

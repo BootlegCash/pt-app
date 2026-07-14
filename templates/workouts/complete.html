@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Finish workout{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div><h1>Finish workout</h1>
+  <span class="muted">{{ session.title }} · {{ session.date|date:"D, M j" }}</span></div>
+  <a class="btn btn-sm" href="{% url 'workouts:logger' session.uuid %}">← Back to logging</a>
+</div>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+  <div class="card">
+    <h2>How did it go?</h2>
+    {% include "partials/form.html" with form=form %}
+  </div>
+
+  <div class="card" id="pain-section">
+    <h2>Pain report</h2>
+    <p class="muted">Fill this in if you had pain today or during the session
+      {% if session.pain_today %}(you reported pain at check-in){% endif %}.</p>
+    {% include "partials/form.html" with form=pain_form %}
+    <p class="disclaimer mb-0">This is not a diagnosis. Sharp, worsening, traumatic,
+      neurological (numbness/tingling/weakness), or function-limiting symptoms should be
+      evaluated by an appropriate licensed professional.</p>
+  </div>
+
+  <div class="sticky-actions">
+    <button type="submit" class="btn btn-success btn-block">Complete workout ✓</button>
+  </div>
+</form>
+{% endblock %}

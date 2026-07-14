@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Exercise library{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Exercise library</h1></div>
+
+<form method="get" class="card row" role="search">
+  <div class="form-row" style="flex:2;min-width:160px;margin:0">
+    <label for="q">Search</label>
+    <input type="text" id="q" name="q" value="{{ query }}" placeholder="e.g. squat">
+  </div>
+  <div class="form-row" style="flex:1;min-width:130px;margin:0">
+    <label for="muscle">Muscle</label>
+    <select id="muscle" name="muscle">
+      <option value="">All</option>
+      {% for key, label in muscles %}<option value="{{ key }}" {% if muscle == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="form-row" style="flex:1;min-width:130px;margin:0">
+    <label for="category">Category</label>
+    <select id="category" name="category">
+      <option value="">All</option>
+      {% for key, label in categories %}<option value="{{ key }}" {% if category == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="btn" style="align-self:flex-end">Filter</button>
+</form>
+
+{% if exercises %}
+<div class="card-grid-wide">
+  {% for exercise in exercises %}
+  <a class="navcard" href="{% url 'exercises:detail' exercise.slug %}">
+    <div class="title">{{ exercise.name }}</div>
+    <div class="sub">{{ exercise.get_primary_muscle_display }} ·
+      {{ exercise.get_equipment_display }} · {{ exercise.get_exercise_category_display }}</div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty"><span class="icon" aria-hidden="true">📚</span>No exercises match those filters.</div>
+{% endif %}
+{% endblock %}

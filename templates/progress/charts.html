@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Progress charts{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Progress charts</h1>
+  <a class="btn btn-sm" href="{% url 'progress:volume' %}">Training volume</a></div>
+
+<div class="card-grid-wide">
+  <div class="card">
+    <h3>Bodyweight (with 7-day average)</h3>
+    <div class="chart-box"><canvas data-chart-url="{% url 'progress:chart_data' 'bodyweight' %}" role="img" aria-label="Bodyweight trend"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Weekly adherence</h3>
+    <div class="chart-box"><canvas data-chart-url="{% url 'progress:chart_data' 'adherence' %}" data-chart-type="bar" role="img" aria-label="Weekly workout adherence"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Weekly volume load</h3>
+    <div class="chart-box"><canvas data-chart-url="{% url 'progress:chart_data' 'volume' %}" data-chart-type="bar" role="img" aria-label="Weekly volume"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Recovery / readiness</h3>
+    <div class="chart-box"><canvas data-chart-url="{% url 'progress:chart_data' 'readiness' %}" role="img" aria-label="Readiness trend"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>Running pace</h3>
+    <div class="chart-box"><canvas data-chart-url="{% url 'progress:chart_data' 'running_pace' %}" role="img" aria-label="Running pace trend"></canvas></div>
+  </div>
+  <div class="card">
+    <h3>PRs over time</h3>
+    <div class="chart-box"><canvas data-chart-url="{% url 'progress:chart_data' 'prs' %}" role="img" aria-label="Personal records timeline"></canvas></div>
+  </div>
+</div>
+
+<div class="card">
+  <h3>Estimated 1RM trend</h3>
+  {% if exercises %}
+  <div class="form-row" style="max-width:320px">
+    <label for="e1rm-exercise">Exercise</label>
+    <select id="e1rm-exercise" data-chart-select="e1rm-box">
+      {% for exercise in exercises %}
+        <option value="{% url 'progress:chart_data' 'e1rm' %}?exercise={{ exercise.slug }}">{{ exercise.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="chart-box" id="e1rm-box">
+    <canvas data-chart-url="{% url 'progress:chart_data' 'e1rm' %}?exercise={{ exercises.0.slug }}" role="img" aria-label="Estimated 1RM trend"></canvas>
+  </div>
+  {% else %}
+  <div class="empty"><span class="icon" aria-hidden="true">📈</span>Log workouts to see strength trends.</div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>Measurement trend</h3>
+  <div class="form-row" style="max-width:320px">
+    <label for="measurement-field">Measurement</label>
+    <select id="measurement-field" data-chart-select="measurement-box">
+      {% for field in measurement_fields %}
+        <option value="{% url 'progress:chart_data' 'measurement' %}?field={{ field }}">{{ field|title }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="chart-box" id="measurement-box">
+    <canvas data-chart-url="{% url 'progress:chart_data' 'measurement' %}?field=neck" role="img" aria-label="Measurement trend"></canvas>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+{% load static %}<script src="{% static 'js/vendor/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/charts.js' %}"></script>
+{% endblock %}

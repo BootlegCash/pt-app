@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Workout history{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Workout history</h1></div>
+
+<form method="get" class="card row">
+  <div class="form-row" style="margin:0;min-width:120px">
+    <label for="f-from">From</label>
+    <input type="date" id="f-from" name="from" value="{{ filters.from }}">
+  </div>
+  <div class="form-row" style="margin:0;min-width:120px">
+    <label for="f-to">To</label>
+    <input type="date" id="f-to" name="to" value="{{ filters.to }}">
+  </div>
+  <div class="form-row" style="margin:0;min-width:140px">
+    <label for="f-program">Program</label>
+    <select id="f-program" name="program">
+      <option value="">All</option>
+      {% for program in programs %}
+        <option value="{{ program.id }}" {% if filters.program == program.id|stringformat:"s" %}selected{% endif %}>{{ program.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-row" style="margin:0;min-width:140px">
+    <label for="f-exercise">Exercise</label>
+    <select id="f-exercise" name="exercise">
+      <option value="">All</option>
+      {% for exercise in exercises %}
+        <option value="{{ exercise.slug }}" {% if filters.exercise == exercise.slug %}selected{% endif %}>{{ exercise.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="form-row" style="margin:0;min-width:130px">
+    <label for="f-status">Status</label>
+    <select id="f-status" name="status">
+      <option value="">All</option>
+      <option value="completed" {% if filters.status == 'completed' %}selected{% endif %}>Completed</option>
+      <option value="partial" {% if filters.status == 'partial' %}selected{% endif %}>Partial</option>
+      <option value="in_progress" {% if filters.status == 'in_progress' %}selected{% endif %}>In progress</option>
+    </select>
+  </div>
+  <label class="row" style="margin:0"><input type="checkbox" name="prs" value="1" {% if filters.prs %}checked{% endif %}> PRs only</label>
+  <label class="row" style="margin:0"><input type="checkbox" name="pain" value="1" {% if filters.pain %}checked{% endif %}> Pain reports</label>
+  <button type="submit" class="btn" style="align-self:flex-end">Filter</button>
+</form>
+
+{% if sessions %}
+<div class="card">
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Date</th><th>Workout</th><th>Status</th><th>Sets done</th><th>Duration</th><th>Readiness</th><th></th></tr></thead>
+    <tbody>
+    {% for session in sessions %}
+    <tr>
+      <td>{{ session.date|date:"M j, Y" }}</td>
+      <td>{{ session.title }}</td>
+      <td><span class="badge {% if session.status == 'completed' %}badge-green{% elif session.status == 'partial' %}badge-yellow{% else %}badge-blue{% endif %}">{{ session.get_status_display }}</span></td>
+      <td>{{ session.set_logs.count }}</td>
+      <td>{% if session.duration_minutes %}{{ session.duration_minutes }} min{% else %}—{% endif %}</td>
+      <td>{% if session.readiness_average %}{{ session.readiness_average }}/5{% else %}—{% endif %}</td>
+      <td><a class="btn btn-sm" href="{% url 'workouts:detail' session.uuid %}">View</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+</div>
+{% else %}
+<div class="empty"><span class="icon" aria-hidden="true">🏋️</span>No workouts match — log your first from the
+  <a href="{% url 'calendar_app:week' %}">calendar</a>.</div>
+{% endif %}
+{% endblock %}

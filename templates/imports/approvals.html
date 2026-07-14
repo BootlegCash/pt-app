@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Upload approvals{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Upload approvals</h1></div>
+<p class="muted">Approving creates a <strong>draft</strong> program you can edit before
+  assigning — nothing is applied to the client automatically.</p>
+
+{% if jobs %}
+{% for job in jobs %}
+<div class="card">
+  <div class="spread">
+    <div>
+      <h3 class="mb-0">{{ job.user.display_label }} — {{ job.original_filename }}</h3>
+      <span class="muted">Submitted {{ job.submitted_at|date:"M j, Y" }} ·
+        {{ job.parsed_data|length }} rows</span>
+    </div>
+    <a class="btn btn-sm" href="{% url 'imports:job_detail' job.uuid %}">Inspect parsed plan</a>
+  </div>
+  <div class="row mt-1">
+    <form method="post" action="{% url 'imports:approve_job' job.uuid %}" class="row">
+      {% csrf_token %}
+      <input type="text" name="notes" placeholder="Note to client (optional)" style="max-width:260px" aria-label="Approval note">
+      <button type="submit" class="btn btn-success btn-sm">Approve → create draft</button>
+    </form>
+    <form method="post" action="{% url 'imports:reject_job' job.uuid %}" class="row">
+      {% csrf_token %}
+      <input type="text" name="notes" placeholder="Rejection reason" style="max-width:220px" aria-label="Rejection reason">
+      <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+    </form>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="empty"><span class="icon" aria-hidden="true">📥</span>No uploads awaiting approval.</div>
+{% endif %}
+{% endblock %}

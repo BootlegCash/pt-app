@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Profile{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="row">
+    <div class="avatar" aria-hidden="true">
+      {% if profile.profile_photo %}<img src="{% url 'profiles:photo' athlete.uuid %}" alt="">{% else %}{{ athlete.initials }}{% endif %}
+    </div>
+    <div>
+      <h1>{{ profile.name|default:athlete.display_label }}</h1>
+      <span class="muted">Managed by {% if profile.coach %}{{ profile.coach.display_label }}{% else %}your administrator{% endif %}</span>
+    </div>
+  </div>
+  <span class="badge badge-blue">{{ profile.get_account_status_display|default:"Active" }}</span>
+</div>
+
+<div class="alert alert-info">Profile details are managed by your coach. If something looks
+  wrong, send them a note.</div>
+
+<div class="card">
+  <h2>Athlete details</h2>
+  <div class="table-wrap"><table class="table">
+    <tr><td class="muted">Training goal</td><td>{{ profile.get_training_goal_display }}</td></tr>
+    <tr><td class="muted">Experience</td><td>{{ profile.get_training_experience_display }}</td></tr>
+    <tr><td class="muted">Age</td><td>{{ profile.age|default:"—" }}</td></tr>
+    <tr><td class="muted">Height</td><td>{{ profile.height_display|default:"—" }}</td></tr>
+    <tr><td class="muted">Current weight</td><td>{% if profile.current_weight_lb %}{{ profile.current_weight_lb }} lb{% else %}—{% endif %}</td></tr>
+    <tr><td class="muted">Goal weight</td><td>{% if profile.goal_weight_lb %}{{ profile.goal_weight_lb }} lb{% else %}—{% endif %}</td></tr>
+    <tr><td class="muted">Activity level</td><td>{{ profile.get_activity_level_display }}</td></tr>
+    <tr><td class="muted">Occupation activity</td><td>{{ profile.get_occupation_activity_display }}</td></tr>
+    <tr><td class="muted">Lifting days / week</td><td>{{ profile.weekly_lifting_days }}</td></tr>
+    <tr><td class="muted">Running days / week</td><td>{{ profile.weekly_running_days }}</td></tr>
+    <tr><td class="muted">Current program</td><td>
+      {% if profile.current_program %}
+        <a href="{% url 'programs:my_program' %}">{{ profile.current_program.name }}</a>
+        {% if profile.program_start_date %} (since {{ profile.program_start_date|date:"M j, Y" }}){% endif %}
+      {% else %}—{% endif %}</td></tr>
+  </table></div>
+</div>
+
+{% if profile.movement_limitations or profile.injury_cautions %}
+<div class="card">
+  <h2>Training cautions</h2>
+  {% if profile.movement_limitations %}<p><strong>Movement limitations:</strong> {{ profile.movement_limitations }}</p>{% endif %}
+  {% if profile.injury_cautions %}<p class="mb-0"><strong>Injury cautions:</strong> {{ profile.injury_cautions }}</p>{% endif %}
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="spread"><h2>Current maxes</h2><a class="btn btn-sm" href="{% url 'progress:maxes' %}">All maxes &amp; PRs</a></div>
+  {% if maxes %}
+  <div class="table-wrap"><table class="table">
+    <thead><tr><th>Lift</th><th>Best</th><th>Change</th><th>BW ratio</th><th>Date</th></tr></thead>
+    <tbody>
+    {% for row in maxes %}
+      <tr>
+        <td><a href="{% url 'workouts:exercise_history' row.max.exercise.slug %}">{{ row.max.exercise.name }}</a></td>
+        <td><strong>{{ row.max.best_value }} lb</strong> <span class="muted">({{ row.max.get_max_type_display }})</span></td>
+        <td>{% if row.change is not None %}
+          <span class="{% if row.change >= 0 %}badge badge-green{% else %}badge badge-red{% endif %}">{% if row.change > 0 %}+{% endif %}{{ row.change|floatformat:1 }}</span>
+        {% else %}—{% endif %}</td>
+        <td>{{ row.ratio|default:"—" }}</td>
+        <td class="muted">{{ row.max.date|date:"M j, Y" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% else %}
+  <div class="empty"><span class="icon" aria-hidden="true">🏆</span>No maxes recorded yet.</div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <div class="spread"><h2>Latest measurements</h2><a class="btn btn-sm" href="{% url 'profiles:measurements' %}">Full history</a></div>
+  {% if latest_measurement %}
+    <p class="muted">Measured {{ latest_measurement.date|date:"M j, Y" }}
+      ({{ latest_measurement.get_measurement_method_display }})</p>
+    <div class="card-grid">
+      {% if latest_measurement.bodyweight_lb %}<div class="metric"><div class="label">Bodyweight</div><div class="value">{{ latest_measurement.bodyweight_lb }} lb</div></div>{% endif %}
+      {% if latest_measurement.waist %}<div class="metric"><div class="label">Waist</div><div class="value">{{ latest_measurement.waist }}"</div></div>{% endif %}
+      {% if latest_measurement.chest %}<div class="metric"><div class="label">Chest</div><div class="value">{{ latest_measurement.chest }}"</div></div>{% endif %}
+      {% if latest_measurement.estimated_body_fat %}<div class="metric"><div class="label">Body fat (rough est.)</div><div class="value">~{{ latest_measurement.estimated_body_fat }}%</div></div>{% endif %}
+      {% if navy_estimate %}<div class="metric"><div class="label">Navy-method (rough est.)</div><div class="value">~{{ navy_estimate }}%</div></div>{% endif %}
+    </div>
+    <p class="disclaimer mb-0">Body-fat figures are rough estimates from circumference
+      measurements — useful for trends, not exact values.</p>
+  {% else %}
+    <div class="empty"><span class="icon" aria-hidden="true">📏</span>No measurements yet.</div>
+  {% endif %}
+</div>
+{% endblock %}
