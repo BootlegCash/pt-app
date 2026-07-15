@@ -42,6 +42,38 @@ class ProgramBuilderTests(TestCase):
         )
         self.assertEqual(response.status_code, 403)
 
+    def test_editing_start_date_updates_an_assigned_client_schedule(self):
+        athlete = make_user()
+        link_coach(self.coach, athlete)
+        program = make_program(self.coach, weeks=1, days_per_week=2)
+        assign_program(program, athlete, start_date=date.today())
+        new_start = date.today() - timedelta(days=7)
+
+        response = self.client.post(
+            reverse("programs:builder_edit", args=[program.uuid]),
+            {
+                "name": program.name,
+                "description": program.description,
+                "main_goal": program.main_goal,
+                "start_date": new_start.isoformat(),
+                "number_of_weeks": program.number_of_weeks,
+                "progression_enabled": "on",
+                "client_visible_notes": program.client_visible_notes,
+                "coach_notes": program.coach_notes,
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        program.refresh_from_db()
+        athlete.athlete_profile.refresh_from_db()
+        self.assertEqual(program.start_date, new_start)
+        self.assertEqual(athlete.athlete_profile.program_start_date, new_start)
+        self.assertTrue(
+            ScheduledSession.objects.filter(
+                user=athlete, program=program, date=new_start
+            ).exists()
+        )
+
     def test_copy_program_produces_unassigned_draft(self):
         athlete = make_user()
         link_coach(self.coach, athlete)

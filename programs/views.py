@@ -93,11 +93,20 @@ def builder_edit(request, program_uuid):
     _require_program_access(request.user, program)
     form = ProgramForm(request.POST or None, instance=program)
     if request.method == "POST" and form.is_valid():
+        start_date_changed = "start_date" in form.changed_data
         record_form_changes(
             changed_by=request.user, affected_user=program.assigned_to,
             form=form, reason="Program edit",
         )
-        form.save()
+        program = form.save()
+        if start_date_changed and program.assigned_to_id:
+            # Keep the athlete profile and future calendar sessions aligned
+            # with the coach-selected programme start date.
+            program.assign_to(
+                program.assigned_to,
+                assigned_by=request.user,
+                start_date=program.start_date,
+            )
         messages.success(request, "Program updated.")
         return redirect("programs:builder_detail", program_uuid=program.uuid)
     return render(request, "programs/builder_form.html", {"form": form, "program": program})

@@ -7,9 +7,10 @@ class ProgramForm(forms.ModelForm):
     class Meta:
         model = Program
         fields = [
-            "name", "description", "main_goal", "number_of_weeks",
+            "name", "description", "main_goal", "start_date", "number_of_weeks",
             "progression_enabled", "client_visible_notes", "coach_notes",
         ]
+        widgets = {"start_date": forms.DateInput(attrs={"type": "date"})}
 
 
 class ProgramWeekForm(forms.ModelForm):
