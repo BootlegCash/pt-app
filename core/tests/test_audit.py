@@ -1,8 +1,9 @@
-from django.test import TestCase
+from django.contrib import admin
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from core.models import AuditRecord
-from core.tests.utils import link_coach, make_user
+from core.tests.utils import link_coach, make_admin, make_user
 
 
 class AuditTests(TestCase):
@@ -48,3 +49,9 @@ class AuditTests(TestCase):
         self.client.force_login(self.athlete)
         response = self.client.get("/admin/core/auditrecord/")
         self.assertEqual(response.status_code, 302)  # redirected to admin login
+
+    def test_audit_records_cannot_be_deleted_in_admin(self):
+        request = RequestFactory().get("/admin/core/auditrecord/")
+        request.user = make_admin()
+        model_admin = admin.site._registry[AuditRecord]
+        self.assertFalse(model_admin.has_delete_permission(request))

@@ -3,6 +3,7 @@
 No uploaded file is ever executed or parsed with macros/formulas enabled.
 """
 import os
+import zipfile
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -46,6 +47,32 @@ def validate_excel_upload(upload):
     if ext == ".xlsx":
         if not head.startswith(XLSX_MAGIC):
             raise ValidationError("This does not look like a valid .xlsx file.")
+        try:
+            upload.seek(0)
+            with zipfile.ZipFile(upload) as archive:
+                members = archive.infolist()
+                names = {member.filename for member in members}
+                total_uncompressed = sum(member.file_size for member in members)
+                sheet_count = sum(
+                    member.filename.startswith("xl/worksheets/sheet")
+                    and member.filename.endswith(".xml")
+                    for member in members
+                )
+                if "[Content_Types].xml" not in names or "xl/workbook.xml" not in names:
+                    raise ValidationError("This does not look like a valid .xlsx workbook.")
+                if len(members) > 2000 or sheet_count > 100:
+                    raise ValidationError("This workbook contains too many internal files or worksheets.")
+                limit = settings.MAX_EXCEL_UNCOMPRESSED_MB * 1024 * 1024
+                if total_uncompressed > limit:
+                    raise ValidationError(
+                        "This workbook expands beyond the safe processing limit."
+                    )
+                if any(member.flag_bits & 0x1 for member in members):
+                    raise ValidationError("Encrypted workbooks are not supported.")
+        except zipfile.BadZipFile as error:
+            raise ValidationError("This does not look like a valid .xlsx file.") from error
+        finally:
+            upload.seek(0)
     elif ext == ".csv":
         if b"\x00" in _read_head(upload, 1024):
             raise ValidationError("This does not look like a valid CSV text file.")

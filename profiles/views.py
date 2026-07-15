@@ -69,4 +69,6 @@ def profile_photo(request, user_uuid):
     storage = get_private_storage()
     if not storage.exists(profile.profile_photo.name):
         raise Http404
-    return FileResponse(storage.open(profile.profile_photo.name, "rb"))
+    response = FileResponse(storage.open(profile.profile_photo.name, "rb"))
+    response["Cache-Control"] = "private, no-store"
+    return response

@@ -27,9 +27,11 @@
       if (input.type === "checkbox") return input.checked;
       return input.value;
     }
+    var subInput = card.querySelector("[data-substitution]");
     return {
       prescription: card.dataset.prescription,
       set_number: parseInt(row.dataset.setNumber, 10),
+      is_warmup: row.dataset.warmup === "1",
       weight: val("weight"),
       reps: val("reps"),
       rir: val("rir"),
@@ -39,7 +41,7 @@
       completed: val("completed"),
       failed: val("failed"),
       notes: val("notes"),
-      substitution: val("substitution")
+      substitution: subInput ? subInput.value : ""
     };
   }
 
@@ -65,7 +67,8 @@
   }
 
   function scheduleSave(row, card) {
-    var key = card.dataset.prescription + ":" + row.dataset.setNumber;
+    var key = card.dataset.prescription + ":" +
+      (row.dataset.warmup === "1" ? "warmup:" : "work:") + row.dataset.setNumber;
     clearTimeout(timers[key]);
     setStatus(card, "saving", "Saving…");
     timers[key] = setTimeout(function () { saveRow(row, card); }, 500);
@@ -74,6 +77,10 @@
   root.querySelectorAll(".exercise-card").forEach(function (card) {
     card.addEventListener("input", function (event) {
       var row = event.target.closest(".set-row");
+      if (!row && event.target.hasAttribute("data-substitution")) {
+        // Substitution request rides along with the first working set.
+        row = card.querySelector(".set-row:not([data-warmup]):not([aria-hidden])");
+      }
       if (row) scheduleSave(row, card);
     });
     card.addEventListener("change", function (event) {

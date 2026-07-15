@@ -26,7 +26,7 @@
     <div class="table-wrap"><table class="table">
       <thead><tr><th>#</th><th>Exercise</th><th>Sets×Reps</th><th>Load</th><th>Effort</th><th>Rest</th><th>Last time</th></tr></thead>
       <tbody>
-      {% for we in session.workout_day.exercises.all %}
+      {% for we in prescriptions %}
         {% if we.active %}
         <tr>
           <td>{{ we.order }}{% if we.superset_group %} <span class="badge badge-purple">SS {{ we.superset_group }}</span>{% endif %}</td>
@@ -34,7 +34,14 @@
             {% if we.optional %}<span class="badge">optional</span>{% endif %}
             {% if we.client_visible_notes %}<div class="muted" style="font-size:.8rem">{{ we.client_visible_notes }}</div>{% endif %}</td>
           <td>{{ we.target_sets }}×{{ we.rep_target_display }}{% if we.warmup_sets %} <span class="muted">(+{{ we.warmup_sets }} warm-up)</span>{% endif %}</td>
-          <td>{% if we.target_weight_lb %}{{ we.target_weight_lb }} lb{% elif we.target_percentage %}{{ we.target_percentage }}%{% else %}—{% endif %}</td>
+          <td>
+            {% if we.set_weight_targets_lb %}{{ we.set_weight_targets_lb|join:" / " }} lb
+            {% elif we.target_weight_lb %}{{ we.target_weight_lb }} lb
+            {% elif we.resolved.weight %}{{ we.resolved.weight|floatformat:"-1" }} lb
+              <span class="muted">({{ we.target_percentage|floatformat:"-1" }}% of {{ we.resolved.reference.get_max_type_display|lower }})</span>
+            {% elif we.target_percentage %}{{ we.target_percentage }}% <span class="muted">(no max on file)</span>
+            {% else %}—{% endif %}
+          </td>
           <td>{{ we.effort_display|default:"—" }}{% if we.tempo %} · {{ we.tempo }}{% endif %}</td>
           <td>{% if we.rest_seconds %}{{ we.rest_seconds }}s{% else %}—{% endif %}</td>
           <td class="muted">

@@ -1,7 +1,7 @@
 import uuid
 
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 
 
 class ProgressionMethod(models.TextChoices):
@@ -60,36 +60,81 @@ class Program(models.Model):
         return self.name
 
     def current_week_number(self, on_date=None):
-        from datetime import date as date_cls
+        from django.utils import timezone
 
         start = self.start_date
         if not start:
             return None
-        today = on_date or date_cls.today()
+        today = on_date or timezone.localdate()
         if today < start:
             return None
         week = (today - start).days // 7 + 1
         return min(week, self.number_of_weeks) if self.number_of_weeks else week
 
+    @transaction.atomic
     def assign_to(self, athlete, assigned_by=None, start_date=None):
         """Assign this program to an athlete: profile pointer, status, calendar."""
-        from datetime import date as date_cls
+        from datetime import timedelta
 
-        from calendar_app.services.generation import generate_program_schedule
+        from django.utils import timezone
+
+        from calendar_app.models import ScheduledSession
+        from calendar_app.services.generation import (
+            generate_program_schedule,
+            queue_google_deletions,
+        )
         from core.services.audit import record_change
         from profiles.models import AthleteProfile
 
-        start = start_date or self.start_date or date_cls.today()
+        if self.assigned_to_id and self.assigned_to_id != athlete.id:
+            raise ValueError(
+                "This program is already assigned to another client. Duplicate it before assigning."
+            )
+        today = timezone.localdate()
+        start = start_date or self.start_date or today
         previous = self.assigned_to
+        profile, _ = AthleteProfile.objects.get_or_create(user=athlete)
+        previous_program = profile.current_program
+        if previous_program and previous_program.pk != self.pk:
+            replaceable_sessions = list(ScheduledSession.objects.filter(
+                user=athlete,
+                program=previous_program,
+                status=ScheduledSession.Status.SCHEDULED,
+                date__gte=today,
+                workout_sessions__isnull=True,
+            ).distinct())
+            removed_event_ids = [
+                session.google_event_id
+                for session in replaceable_sessions
+                if session.google_event_id
+            ]
+            if replaceable_sessions:
+                ScheduledSession.objects.filter(
+                    id__in=[session.id for session in replaceable_sessions]
+                ).delete()
+            if removed_event_ids:
+                queue_google_deletions(athlete.id, removed_event_ids)
+            if previous_program.status == self.Status.ACTIVE:
+                previous_program.status = self.Status.ARCHIVED
+                previous_program.save(update_fields=["status", "updated_at"])
         self.assigned_to = athlete
         self.start_date = start
+        self.planned_end_date = start + timedelta(
+            days=max(self.number_of_weeks * 7 - 1, 0)
+        )
         self.status = self.Status.ACTIVE
         self.save()
-        profile, _ = AthleteProfile.objects.get_or_create(user=athlete)
         profile.current_program = self
         profile.program_start_date = start
         profile.save(update_fields=["current_program", "program_start_date", "updated_at"])
-        generate_program_schedule(self, athlete)
+        generate_program_schedule(
+            self,
+            athlete,
+            skip_past=bool(previous_program and previous_program.pk != self.pk),
+            avoid_dates_with_logged_workouts=bool(
+                previous_program and previous_program.pk != self.pk
+            ),
+        )
         record_change(
             changed_by=assigned_by, affected_user=athlete, obj=self,
             field="assigned_to",
@@ -173,6 +218,11 @@ class WorkoutExercise(models.Model):
         help_text="Free-form target, e.g. AMRAP, 30 seconds, 20-40 yd.",
     )
     target_weight_lb = models.DecimalField(max_digits=6, decimal_places=1, null=True, blank=True)
+    set_weight_targets_lb = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Optional working-set weights in order, e.g. [290, 305].",
+    )
     target_percentage = models.DecimalField(
         max_digits=5, decimal_places=1, null=True, blank=True,
         help_text="Percent of training max.",

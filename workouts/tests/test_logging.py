@@ -62,6 +62,69 @@ class LoggingFlowTests(TestCase):
         self.assertEqual(session.energy, 4)
         self.assertEqual(session.status, WorkoutSession.Status.IN_PROGRESS)
 
+    def test_logger_prefills_editable_per_set_weights(self):
+        self.prescription.set_weight_targets_lb = [95, 105, 110]
+        self.prescription.warmup_sets = 2
+        self.prescription.save(update_fields=["set_weight_targets_lb", "warmup_sets"])
+        session = self._start_session()
+        response = self.client.get(reverse("workouts:logger", args=[session.uuid]))
+        self.assertContains(response, 'value="95"')
+        self.assertContains(response, 'value="105"')
+        self.assertContains(response, 'value="110"')
+        self.assertContains(response, 'title="Warm-up set 1"')
+        self.assertContains(response, 'title="Working set 1"')
+
+    def test_logged_weight_overrides_prescribed_default(self):
+        self.prescription.set_weight_targets_lb = [95, 105, 110]
+        self.prescription.save(update_fields=["set_weight_targets_lb"])
+        session = self._start_session()
+        self._autosave(session, set_number=1, weight=102.5)
+        response = self.client.get(reverse("workouts:logger", args=[session.uuid]))
+        self.assertContains(response, 'value="102.5"')
+
+    def test_blank_per_set_target_stays_blank_instead_of_falling_back(self):
+        self.prescription.set_weight_targets_lb = [95, None, 110]
+        self.prescription.save(update_fields=["set_weight_targets_lb"])
+        session = self._start_session()
+
+        response = self.client.get(reverse("workouts:logger", args=[session.uuid]))
+
+        weights = [row["weight"] for row in response.context["cards"][0]["rows"]]
+        self.assertEqual(weights, [95, None, 110])
+
+    def test_logger_calculates_percentage_weight_from_max(self):
+        from datetime import date
+        from progress.models import LiftMax
+
+        self.prescription.target_weight_lb = None
+        self.prescription.set_weight_targets_lb = []
+        self.prescription.target_percentage = 80
+        self.prescription.save(update_fields=[
+            "target_weight_lb", "set_weight_targets_lb", "target_percentage",
+        ])
+        LiftMax.objects.create(
+            user=self.athlete, exercise=self.prescription.exercise,
+            max_type=LiftMax.MaxType.COACH, weight_lb=200, reps=1, date=date.today(),
+        )
+        session = self._start_session()
+        response = self.client.get(reverse("workouts:logger", args=[session.uuid]))
+        self.assertContains(response, 'value="160.0"')
+
+    def test_strength_rep_text_still_uses_reps_and_effort_inputs(self):
+        self.prescription.target_rep_min = None
+        self.prescription.target_rep_max = None
+        self.prescription.target_reps_text = "10 each"
+        self.prescription.save(update_fields=[
+            "target_rep_min", "target_rep_max", "target_reps_text",
+        ])
+        session = self._start_session()
+
+        response = self.client.get(reverse("workouts:logger", args=[session.uuid]))
+
+        self.assertContains(response, 'data-field="reps"')
+        self.assertContains(response, 'data-field="rir"')
+        self.assertNotContains(response, 'aria-label="Set 1 distance (yards)"')
+
     def test_autosave_upserts_single_row(self):
         session = self._start_session()
         self.assertEqual(self._autosave(session).status_code, 200)
@@ -88,6 +151,22 @@ class LoggingFlowTests(TestCase):
         self._autosave(session, set_number=4)  # target_sets is 3
         log = SetLog.objects.get(session=session, set_number=4)
         self.assertTrue(log.is_extra)
+
+    def test_warmup_and_working_set_with_same_number_are_distinct(self):
+        session = self._start_session()
+        self._autosave(session, is_warmup=True, weight=45, reps=10)
+        self._autosave(session, is_warmup=False, weight=100, reps=8)
+        logs = SetLog.objects.filter(session=session, set_number=1)
+        self.assertEqual(logs.count(), 2)
+        self.assertEqual(float(logs.get(is_warmup=True).weight_lb), 45.0)
+        self.assertEqual(float(logs.get(is_warmup=False).weight_lb), 100.0)
+
+    def test_autosave_records_rpe_separately_from_rir(self):
+        session = self._start_session()
+        self._autosave(session, rir="", rpe=8.5)
+        log = SetLog.objects.get(session=session, set_number=1)
+        self.assertIsNone(log.rir)
+        self.assertEqual(float(log.rpe), 8.5)
 
     def test_remove_extra_set_only(self):
         session = self._start_session()

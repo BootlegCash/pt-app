@@ -1,56 +1,106 @@
 {% extends "base.html" %}
-{% block title %}Coach dashboard{% endblock %}
+{% block title %}Coaching workspace{% endblock %}
 {% block content %}
-<div class="page-head"><h1>Coach dashboard</h1>
-  <a class="btn btn-primary btn-sm" href="{% url 'programs:builder_list' %}">Program builder</a></div>
+<section class="coach-hero">
+  <div>
+    <div class="coach-kicker">Coaching workspace</div>
+    <h1>Good to see you, {{ user.first_name|default:user.username }}</h1>
+    <p>Monitor your roster, review athlete signals, and keep private coaching context in one place.</p>
+  </div>
+  <div class="coach-hero-actions">
+    <a class="btn btn-primary" href="{% url 'coaching:client_list' %}">View all clients</a>
+    <a class="btn" href="{% url 'imports:coach_upload' %}">Upload program</a>
+    <a class="btn" href="{% url 'programs:builder_list' %}">Program builder</a>
+  </div>
+</section>
 
-<div class="card-grid">
-  <a class="metric" href="{% url 'coaching:progression_approvals' %}" style="text-decoration:none">
-    <div class="label">Progression approvals</div>
-    <div class="value">{{ pending_progressions }}</div><div class="sub">pending review</div></a>
-  <a class="metric" href="{% url 'coaching:pain_flags' %}" style="text-decoration:none">
-    <div class="label">Pain flags</div>
-    <div class="value" {% if pain_flags %}style="color:var(--red)"{% endif %}>{{ pain_flags }}</div>
-    <div class="sub">unreviewed</div></a>
-  <a class="metric" href="{% url 'imports:approvals' %}" style="text-decoration:none">
-    <div class="label">Upload approvals</div>
-    <div class="value">{{ pending_imports }}</div><div class="sub">awaiting review</div></a>
-  <div class="metric"><div class="label">Programs past end date</div>
-    <div class="value">{{ stale_programs }}</div><div class="sub">may need updates</div></div>
+<div class="coach-summary-grid" aria-label="Coaching overview">
+  <div class="coach-summary-card">
+    <span>Active clients</span><strong>{{ active_client_count }}</strong>
+    <small>on your current roster</small>
+  </div>
+  <a class="coach-summary-card" href="{% url 'coaching:progression_approvals' %}">
+    <span>Progressions</span><strong>{{ pending_progressions }}</strong>
+    <small>waiting for your decision</small>
+  </a>
+  <a class="coach-summary-card {% if pain_flags %}needs-attention{% endif %}" href="{% url 'coaching:pain_flags' %}">
+    <span>Pain flags</span><strong>{{ pain_flags }}</strong>
+    <small>unreviewed athlete reports</small>
+  </a>
+  <a class="coach-summary-card" href="{% url 'imports:approvals' %}">
+    <span>File reviews</span><strong>{{ pending_imports }}</strong>
+    <small>uploads awaiting approval</small>
+  </a>
 </div>
 
-<h2 class="mt-1">Clients</h2>
+<div class="coach-section-head">
+  <div>
+    <div class="coach-kicker">Your roster</div>
+    <h2>Client pulse</h2>
+  </div>
+  {% if attention_count %}<span class="badge badge-yellow">{{ attention_count }} item{{ attention_count|pluralize }} need attention</span>{% else %}<span class="badge badge-green">All caught up</span>{% endif %}
+</div>
+
 {% if summaries %}
+<div class="coach-client-grid">
 {% for s in summaries %}
-<div class="card">
-  <div class="spread">
-    <div class="row">
-      <div class="avatar" aria-hidden="true">{{ s.client.initials }}</div>
-      <div>
-        <h3 class="mb-0"><a href="{% url 'coaching:client_detail' s.client.uuid %}">{{ s.client.display_label }}</a></h3>
-        <span class="muted">{% if s.profile %}{{ s.profile.get_training_goal_display }}{% endif %}
-          {% if s.profile.current_program %} · {{ s.profile.current_program.name }}{% endif %}</span>
-      </div>
+  <article class="coach-client-card">
+    <div class="coach-client-head">
+      <a class="row" href="{% url 'coaching:client_detail' s.client.uuid %}">
+        <div class="avatar" aria-hidden="true">{{ s.client.initials }}</div>
+        <div>
+          <h3>{{ s.client.display_label }}</h3>
+          <span>{% if s.profile %}{{ s.profile.get_training_goal_display }}{% else %}Profile not completed{% endif %}</span>
+        </div>
+      </a>
+      {% if s.pain_flags or s.missed %}<span class="attention-dot" title="Needs attention" aria-label="Needs attention"></span>{% endif %}
     </div>
-    <div class="row">
-      {% if s.pain_flags %}<span class="badge badge-red">🚩 {{ s.pain_flags }} pain</span>{% endif %}
-      {% if s.pending_progressions %}<span class="badge badge-blue">{{ s.pending_progressions }} progressions</span>{% endif %}
-      {% if s.pending_imports %}<span class="badge badge-yellow">{{ s.pending_imports }} uploads</span>{% endif %}
-      {% if s.missed %}<span class="badge badge-red">{{ s.missed }} missed (14d)</span>{% endif %}
-      {% if s.recent_prs %}<span class="badge badge-green">{{ s.recent_prs }} PRs (14d)</span>{% endif %}
-      {% if s.recent_notes %}<span class="badge">{{ s.recent_notes }} new notes</span>{% endif %}
+
+    <div class="coach-program-line">
+      <span>Current program</span>
+      <strong>{% if s.profile.current_program %}{{ s.profile.current_program.name }}{% else %}Not assigned{% endif %}</strong>
     </div>
-  </div>
-  <div class="row muted" style="font-size:.85rem;margin-top:.4rem">
-    <span>This week: <strong>{{ s.adherence.completed }}/{{ s.adherence.scheduled }}</strong></span>
-    <span>Last workout: {% if s.last_workout %}{{ s.last_workout.date|date:"M j" }}{% else %}—{% endif %}</span>
-    <span>Next: {% if s.next_scheduled %}{{ s.next_scheduled.title }} {{ s.next_scheduled.date|date:"M j" }}{% else %}—{% endif %}</span>
-    {% if s.weight_trend is not None %}<span>BW: {% if s.weight_trend > 0 %}+{% endif %}{{ s.weight_trend|floatformat:1 }} lb</span>{% endif %}
-  </div>
-</div>
+
+    <div class="coach-client-stats">
+      <div><span>This week</span><strong>{{ s.adherence.completed }}/{{ s.adherence.scheduled }}</strong></div>
+      <div><span>Last workout</span><strong>{% if s.last_workout %}{{ s.last_workout.date|date:"M j" }}{% else %}—{% endif %}</strong></div>
+      <div><span>Next session</span><strong>{% if s.next_scheduled %}{{ s.next_scheduled.date|date:"M j" }}{% else %}—{% endif %}</strong></div>
+    </div>
+
+    <div class="coach-signal-row">
+      {% if s.pain_flags %}<a class="badge badge-red" href="{% url 'coaching:pain_flags' %}">{{ s.pain_flags }} pain</a>{% endif %}
+      {% if s.missed %}<span class="badge badge-red">{{ s.missed }} missed</span>{% endif %}
+      {% if s.pending_progressions %}<a class="badge badge-blue" href="{% url 'coaching:progression_approvals' %}">{{ s.pending_progressions }} progression{{ s.pending_progressions|pluralize }}</a>{% endif %}
+      {% if s.recent_notes %}<span class="badge">{{ s.recent_notes }} workout note{{ s.recent_notes|pluralize }}</span>{% endif %}
+      {% if s.recent_prs %}<span class="badge badge-green">{{ s.recent_prs }} recent PR{{ s.recent_prs|pluralize }}</span>{% endif %}
+      {% if not s.pain_flags and not s.missed and not s.pending_progressions and not s.recent_notes %}<span class="muted">No new flags</span>{% endif %}
+    </div>
+
+    <div class="coach-quick-actions">
+      <a href="{% url 'coaching:client_detail' s.client.uuid %}">Open client</a>
+      <a href="{% url 'coaching:client_calendar' s.client.uuid %}">Calendar</a>
+      <a href="{% url 'coaching:client_history' s.client.uuid %}">History</a>
+      {% if s.profile.current_program %}<a href="{% url 'programs:builder_detail' s.profile.current_program.uuid %}">Edit program</a>{% endif %}
+    </div>
+
+    {% if s.relationship %}
+    <details class="coach-note-box" {% if s.relationship.private_notes %}open{% endif %}>
+      <summary>Private coach notes <span>Only you and administrators can see these</span></summary>
+      <form method="post" action="{% url 'coaching:client_notes_save' s.client.uuid %}">
+        {% csrf_token %}
+        <textarea name="private_notes" rows="3" maxlength="5000" placeholder="Add observations, follow-ups, technique cues, or check-in reminders…">{{ s.relationship.private_notes }}</textarea>
+        <button class="btn btn-sm" type="submit">Save private notes</button>
+      </form>
+    </details>
+    {% endif %}
+  </article>
 {% endfor %}
+</div>
 {% else %}
-<div class="empty"><span class="icon" aria-hidden="true">🧑‍🏫</span>No active clients yet.
-  {% if user.is_staff %}<a href="{% url 'coaching:create_user' %}">Create a user</a> and assign yourself as coach.{% endif %}</div>
+<div class="empty">No active clients yet. {% if user.is_staff %}<a href="{% url 'coaching:create_user' %}">Create a client account</a> to start your roster.{% endif %}</div>
+{% endif %}
+
+{% if stale_programs %}
+<div class="alert alert-warning">{{ stale_programs }} active program{{ stale_programs|pluralize }} passed the planned end date and may need an update.</div>
 {% endif %}
 {% endblock %}

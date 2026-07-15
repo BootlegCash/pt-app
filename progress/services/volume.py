@@ -2,13 +2,15 @@
 compound lifts stimulate several muscles and no exact per-muscle stimulus is
 claimed anywhere in the UI."""
 from collections import Counter
-from datetime import date as date_cls, timedelta
+from datetime import timedelta
+
+from django.utils import timezone
 
 
 def volume_summary(user, days=28):
     from workouts.models import SetLog
 
-    since = date_cls.today() - timedelta(days=days)
+    since = timezone.localdate() - timedelta(days=days)
     logs = list(
         SetLog.objects.filter(
             session__user=user, completed=True, is_warmup=False,

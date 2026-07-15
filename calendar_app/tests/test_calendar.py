@@ -1,14 +1,35 @@
-from datetime import date, timedelta
+from datetime import timedelta
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
+from django.utils import timezone
 
-from calendar_app.models import ScheduledSession
+from calendar_app.models import GoogleCalendarDeletion, ScheduledSession
+from calendar_app.services.generation import generate_program_schedule
+from calendar_app.services.google_calendar import _event_body
 from calendar_app.services.grids import month_grid, week_grid
 from core.tests.utils import assign_program, link_coach, make_program, make_user
+from workouts.models import WorkoutSession
 
 
 def monday_of(this_date):
     return this_date - timedelta(days=this_date.weekday())
+
+
+class GoogleCalendarPrivacyTests(TestCase):
+    @override_settings(SITE_URL="https://portal.example")
+    def test_event_body_does_not_export_private_session_notes(self):
+        athlete = make_user()
+        session = ScheduledSession.objects.create(
+            user=athlete,
+            date=timezone.localdate(),
+            title="Upper body",
+            notes="Private injury and coaching context",
+        )
+
+        body = _event_body(session)
+
+        self.assertNotIn(session.notes, body["description"])
+        self.assertIn("portal.example", body["description"])
 
 
 class GenerationTests(TestCase):
@@ -19,7 +40,7 @@ class GenerationTests(TestCase):
 
     def test_days_land_on_default_weekdays(self):
         program = make_program(self.coach, weeks=2, days_per_week=2)
-        start = monday_of(date.today())
+        start = monday_of(timezone.localdate())
         assign_program(program, self.athlete, start_date=start)
         sessions = list(
             ScheduledSession.objects.filter(user=self.athlete).order_by("date")
@@ -33,14 +54,20 @@ class GenerationTests(TestCase):
 
     def test_sessions_before_start_are_pulled_to_start(self):
         program = make_program(self.coach, weeks=1, days_per_week=2)
-        wednesday = monday_of(date.today()) + timedelta(days=2)
+        wednesday = monday_of(timezone.localdate()) + timedelta(days=2)
         assign_program(program, self.athlete, start_date=wednesday)
         for session in ScheduledSession.objects.filter(user=self.athlete):
             self.assertGreaterEqual(session.date, wednesday)
+        dates = list(
+            ScheduledSession.objects.filter(user=self.athlete)
+            .order_by("date")
+            .values_list("date", flat=True)
+        )
+        self.assertEqual(dates, [wednesday + timedelta(days=5), wednesday + timedelta(days=6)])
 
     def test_effective_status_missed(self):
         session = ScheduledSession.objects.create(
-            user=self.athlete, date=date.today() - timedelta(days=2),
+            user=self.athlete, date=timezone.localdate() - timedelta(days=2),
             session_type="lifting", title="Old",
         )
         self.assertEqual(session.effective_status, ScheduledSession.Status.MISSED)
@@ -57,11 +84,91 @@ class GenerationTests(TestCase):
         self.assertEqual(session.session_type, ScheduledSession.SessionType.TESTING)
         self.assertEqual(session.color_class, "cal-testing")
 
+    def test_backdated_assignment_does_not_create_false_missed_weeks(self):
+        program = make_program(self.coach, weeks=8, days_per_week=1)
+        start = timezone.localdate() - timedelta(weeks=6)
+
+        assign_program(program, self.athlete, start_date=start)
+
+        sessions = ScheduledSession.objects.filter(user=self.athlete, program=program)
+        self.assertEqual(sessions.count(), 2)
+        self.assertGreaterEqual(sessions.order_by("date").first().date, start + timedelta(weeks=6))
+
+    def test_schedule_regeneration_preserves_in_progress_workout_link(self):
+        program = make_program(self.coach, weeks=1, days_per_week=1)
+        assign_program(program, self.athlete, start_date=timezone.localdate() + timedelta(days=7))
+        scheduled = ScheduledSession.objects.get(user=self.athlete, program=program)
+        workout = WorkoutSession.objects.create(
+            user=self.athlete,
+            scheduled_session=scheduled,
+            workout_day=scheduled.workout_day,
+            program=program,
+            date=scheduled.date,
+        )
+
+        assign_program(program, self.athlete, start_date=program.start_date + timedelta(days=7))
+
+        workout.refresh_from_db()
+        self.assertEqual(workout.scheduled_session_id, scheduled.id)
+        self.assertEqual(
+            ScheduledSession.objects.filter(
+                user=self.athlete, program=program, workout_day=scheduled.workout_day
+            ).count(),
+            1,
+        )
+
+    def test_schedule_regeneration_updates_google_linked_row_in_place(self):
+        program = make_program(self.coach, weeks=1, days_per_week=1)
+        assign_program(program, self.athlete, start_date=timezone.localdate() + timedelta(days=7))
+        scheduled = ScheduledSession.objects.get(user=self.athlete, program=program)
+        scheduled.google_event_id = "existing-google-event"
+        scheduled.save(update_fields=["google_event_id"])
+
+        assign_program(program, self.athlete, start_date=program.start_date + timedelta(days=7))
+
+        scheduled.refresh_from_db()
+        self.assertEqual(scheduled.google_event_id, "existing-google-event")
+        self.assertEqual(
+            ScheduledSession.objects.filter(user=self.athlete, program=program).count(), 1
+        )
+
+    def test_removed_google_event_is_queued_without_network_call(self):
+        program = make_program(self.coach, weeks=1, days_per_week=1)
+        assign_program(
+            program, self.athlete, start_date=timezone.localdate() + timedelta(days=7)
+        )
+        scheduled = ScheduledSession.objects.get(user=self.athlete, program=program)
+        scheduled.google_event_id = "stale-google-event"
+        scheduled.save(update_fields=["google_event_id"])
+        scheduled.workout_day.delete()
+
+        generate_program_schedule(program, self.athlete)
+
+        self.assertFalse(ScheduledSession.objects.filter(pk=scheduled.pk).exists())
+        self.assertTrue(GoogleCalendarDeletion.objects.filter(
+            user=self.athlete, event_id="stale-google-event", processed_at__isnull=True,
+        ).exists())
+
+    def test_regeneration_does_not_duplicate_current_week_past_session(self):
+        program = make_program(self.coach, weeks=1, days_per_week=2)
+        start = monday_of(timezone.localdate())
+        assign_program(program, self.athlete, start_date=start)
+        initial_count = ScheduledSession.objects.filter(
+            user=self.athlete, program=program
+        ).count()
+
+        assign_program(program, self.athlete, start_date=start)
+
+        self.assertEqual(
+            ScheduledSession.objects.filter(user=self.athlete, program=program).count(),
+            initial_count,
+        )
+
 
 class GridTests(TestCase):
     def test_week_grid_has_seven_days_with_sessions(self):
         user = make_user()
-        today = date.today()
+        today = timezone.localdate()
         ScheduledSession.objects.create(
             user=user, date=today, session_type="lifting", title="Session A"
         )
@@ -85,7 +192,7 @@ class GridTests(TestCase):
         self.client.force_login(coach)
         response = self.client.post(
             reverse("calendar_app:coach_session_create", args=[athlete.uuid]),
-            {"date": date.today().isoformat(), "session_type": "mobility",
+            {"date": timezone.localdate().isoformat(), "session_type": "mobility",
              "title": "Mobility 20 min", "notes": ""},
         )
         self.assertEqual(response.status_code, 302)
@@ -97,3 +204,34 @@ class GridTests(TestCase):
         )
         self.assertEqual(response.status_code, 403)
         self.assertTrue(ScheduledSession.objects.filter(pk=session.pk).exists())
+
+    def test_coach_cannot_attach_another_coachs_workout_day(self):
+        from django.urls import reverse
+
+        coach_a, coach_b = make_user(is_coach=True), make_user(is_coach=True)
+        athlete_a, athlete_b = make_user(), make_user()
+        link_coach(coach_a, athlete_a)
+        link_coach(coach_b, athlete_b)
+        program_a = make_program(coach_a)
+        program_b = make_program(coach_b)
+        assign_program(program_a, athlete_a)
+        assign_program(program_b, athlete_b)
+        foreign_day = program_a.weeks.first().days.first()
+        self.client.force_login(coach_b)
+
+        response = self.client.post(
+            reverse("calendar_app:coach_session_create", args=[athlete_b.uuid]),
+            {
+                "date": timezone.localdate().isoformat(),
+                "session_type": "lifting",
+                "title": "Foreign plan",
+                "workout_day": foreign_day.pk,
+                "notes": "",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Select a valid choice")
+        self.assertFalse(
+            ScheduledSession.objects.filter(user=athlete_b, title="Foreign plan").exists()
+        )

@@ -20,7 +20,9 @@ def get_private_storage():
     backend = settings.MEDIA_STORAGE_BACKEND
     if _storage is None:
         if backend == "local":
-            os.makedirs(settings.PRIVATE_MEDIA_ROOT, exist_ok=True)
+            os.makedirs(settings.PRIVATE_MEDIA_ROOT, mode=0o700, exist_ok=True)
+            if os.name == "posix":
+                os.chmod(settings.PRIVATE_MEDIA_ROOT, 0o700)
             _storage = FileSystemStorage(location=str(settings.PRIVATE_MEDIA_ROOT))
         else:
             raise NotImplementedError(

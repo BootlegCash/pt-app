@@ -109,7 +109,7 @@ class Command(BaseCommand):
             self.stdout.write(f"  orphan: {path}")
             if apply_changes:
                 os.remove(path)
-                deleted_files += 1
+            deleted_files += 1
 
         verb = "Deleted" if apply_changes else "Would delete"
         self.stdout.write(self.style.SUCCESS(f"{verb} {deleted_files} file(s)."))

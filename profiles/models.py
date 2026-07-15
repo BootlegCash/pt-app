@@ -1,8 +1,8 @@
 import uuid
-from datetime import date
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from core.services.storage import get_private_storage, randomized_name
 
@@ -114,7 +114,7 @@ class AthleteProfile(models.Model):
     def age(self):
         if not self.birth_date:
             return None
-        today = date.today()
+        today = timezone.localdate()
         years = today.year - self.birth_date.year
         if (today.month, today.day) < (self.birth_date.month, self.birth_date.day):
             years -= 1

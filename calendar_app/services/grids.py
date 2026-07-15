@@ -2,6 +2,8 @@
 import calendar as pycal
 from datetime import date as date_cls, timedelta
 
+from django.utils import timezone
+
 from calendar_app.models import ScheduledSession
 
 
@@ -14,7 +16,7 @@ def week_grid(user, start):
     by_date = {}
     for session in sessions:
         by_date.setdefault(session.date, []).append(session)
-    today = date_cls.today()
+    today = timezone.localdate()
     for offset in range(7):
         day = monday + timedelta(days=offset)
         days.append({
@@ -40,7 +42,7 @@ def month_grid(user, year, month):
     by_date = {}
     for session in sessions:
         by_date.setdefault(session.date, []).append(session)
-    today = date_cls.today()
+    today = timezone.localdate()
     weeks, current = [], []
     for _ in range(first_weekday):
         current.append(None)

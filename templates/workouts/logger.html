@@ -25,8 +25,11 @@
   </div>
   <div class="target-line">
     Target: {{ card.prescription.target_sets }}×{{ card.prescription.rep_target_display }}
-    {% if card.prescription.target_weight_lb %} @ {{ card.prescription.target_weight_lb }} lb{% endif %}
-    {% if card.prescription.target_percentage %} @ {{ card.prescription.target_percentage }}%{% endif %}
+    {% if card.prescription.set_weight_targets_lb %} @ {{ card.prescription.set_weight_targets_lb|join:" / " }} lb
+    {% elif card.prescription.target_weight_lb %} @ {{ card.prescription.target_weight_lb }} lb
+    {% elif card.resolved.weight %} @ {{ card.resolved.weight|floatformat:"-1" }} lb
+      <span class="faint">({{ card.prescription.target_percentage|floatformat:"-1" }}% of {{ card.resolved.reference.get_max_type_display|lower }})</span>
+    {% elif card.prescription.target_percentage %} @ {{ card.prescription.target_percentage }}% <span class="faint">(no max on file)</span>{% endif %}
     {% if card.prescription.effort_display %} · {{ card.prescription.effort_display }}{% endif %}
     {% if card.prescription.rest_seconds %} · rest {{ card.prescription.rest_seconds }}s{% endif %}
     {% if card.prescription.tempo %} · tempo {{ card.prescription.tempo }}{% endif %}
@@ -41,42 +44,34 @@
   </p>
 
   <div class="set-row" aria-hidden="true" style="margin-bottom:2px">
-    <div class="setnum faint">#</div>
+    <div class="setnum faint">Set</div>
     <div class="faint" style="font-size:.72rem;text-align:center">Weight (lb)</div>
-    <div class="faint" style="font-size:.72rem;text-align:center">Reps</div>
-    <div class="faint" style="font-size:.72rem;text-align:center">RIR / RPE</div>
+    {% if card.track_distance %}
+      <div class="faint" style="font-size:.72rem;text-align:center">Dist (yd)</div>
+      <div class="faint" style="font-size:.72rem;text-align:center">Time (s)</div>
+    {% else %}
+      <div class="faint" style="font-size:.72rem;text-align:center">Reps</div>
+      <div class="faint" style="font-size:.72rem;text-align:center">RIR / RPE</div>
+    {% endif %}
     <div class="faint" style="font-size:.72rem;text-align:center">✓</div>
   </div>
-  {% for row in card.rows %}
-  <div class="set-row" data-set-number="{{ row.number }}" data-set-uuid="{{ row.log.uuid|default:'' }}">
-    <div class="setnum">{{ row.number }}</div>
-    <input type="number" inputmode="decimal" step="0.5" min="0" data-field="weight"
-           value="{{ row.log.weight_lb|default_if_none:'' }}" aria-label="Set {{ row.number }} weight (lb)">
-    <input type="number" inputmode="numeric" min="0" max="200" data-field="reps"
-           value="{{ row.log.reps|default_if_none:'' }}" aria-label="Set {{ row.number }} reps">
-    <input type="number" inputmode="decimal" step="0.5" min="0" max="10" data-field="rir"
-           value="{{ row.log.rir|default_if_none:'' }}" aria-label="Set {{ row.number }} RIR"
-           placeholder="{% if card.prescription.target_rpe is not None %}RPE{% else %}RIR{% endif %}">
-    <div class="set-check">
-      <input type="checkbox" data-field="completed" {% if row.log.completed %}checked{% endif %}
-             aria-label="Set {{ row.number }} completed">
-    </div>
-    <input type="hidden" data-field="rpe" value="{{ row.log.rpe|default_if_none:'' }}">
-    <input type="hidden" data-field="distance" value="{{ row.log.distance_yards|default_if_none:'' }}">
-    <input type="hidden" data-field="duration" value="{{ row.log.duration_seconds|default_if_none:'' }}">
-    <input type="hidden" data-field="substitution" value="{{ row.log.substitution_request|default:'' }}">
-    <input type="text" data-field="notes" value="{{ row.log.notes|default:'' }}"
-           placeholder="Set notes / substitution request…" aria-label="Set {{ row.number }} notes"
-           style="grid-column: 1 / 4; min-height:38px; text-align:left">
-    <label class="row faint" style="margin:0;font-size:.7rem;justify-content:center" title="Mark set as failed">
-      <input type="checkbox" data-field="failed" {% if row.log.failed %}checked{% endif %}
-             aria-label="Set {{ row.number }} failed"> fail
-    </label>
-    <button type="button" class="btn btn-sm btn-danger" data-remove-set
-            {% if not row.log.is_extra %}hidden{% endif %} aria-label="Remove extra set">✕</button>
-  </div>
+  {% for row in card.warmup_rows %}
+    {% include "workouts/_set_row.html" with row=row card=card warmup=True %}
   {% endfor %}
-  <button type="button" class="btn btn-sm" data-add-set>＋ Add extra set</button>
+  {% for row in card.rows %}
+    {% include "workouts/_set_row.html" with row=row card=card warmup=False %}
+  {% endfor %}
+  <div class="row" style="margin-top:.4rem">
+    <button type="button" class="btn btn-sm" data-add-set>＋ Add extra set</button>
+    <details style="flex:1;min-width:220px">
+      <summary class="muted" style="cursor:pointer;font-size:.82rem">Request exercise substitution</summary>
+      <input type="text" data-substitution value="{{ card.substitution }}" maxlength="200"
+             placeholder="e.g. shoulder pinches — did DB press instead?"
+             aria-label="Substitution request for {{ card.prescription.exercise.name }}"
+             style="margin-top:.35rem">
+      <span class="helptext">Saved with this workout — your coach decides on the change.</span>
+    </details>
+  </div>
 </div>
 {% empty %}
 <div class="empty"><span class="icon" aria-hidden="true">🤔</span>

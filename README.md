@@ -12,18 +12,30 @@ execution, performance, readiness, and feedback.**
   calendar, current program, mobile-first workout logger with autosave,
   workout/exercise history, progress charts (Chart.js), nutrition targets,
   supplements, private file uploads, data export, self-deactivation
+- Workout logger pre-fills coach-prescribed loads (including distinct working
+  set weights and percentage-of-max prescriptions) while preserving the
+  athlete's ability to record the actual load used
 - Coach pages: dashboard (adherence, pain flags, PRs, pending approvals),
   client detail hub, program builder (weeks/days/exercises/supersets/copying),
   calendar management, measurement & max entry, nutrition calculator
   (Mifflin-St Jeor / Katch-McArdle + configurable macro rules + overrides +
   weight-trend recommendations), supplement assignment, progression approvals,
   Excel-import approvals, private notes
+- Coach workspace: role-specific overview, client pulse cards, coaching alerts,
+  quick client actions, and relationship-scoped private notes
 - Progressive overload: double / fixed-load / percentage / rep / RIR-RPE /
   manual / performance-based. Recommendations are **never applied silently** —
   a coach approves, modifies, or rejects each one, and applied changes are audited
-- Excel (.xlsx/.csv) upload → worksheet choice → column mapping → parsed
-  preview → coach approval → **draft** program (never overwrites a live program)
-- PDF reference uploads with page count, stored privately
+- Percentage-based prescriptions resolve from the athlete's training max (with
+  tested/estimated-max fallbacks), while the logger keeps warm-up and working
+  sets distinct and records RIR or RPE exactly as prescribed
+- Excel/CSV upload with automatic multi-sheet interpretation and editable
+  guesses for weeks, days, weekdays, sets/reps, per-set loads, percentages,
+  effort, rest and notes → parsed preview → **draft** program (never
+  overwrites a live program); manual mapping remains available
+- PDF reference uploads with page count, stored privately; assigned coaches can
+  attach notes or link a file to an eligible client program without exposing
+  those private notes to the athlete
 - All private files served only through authenticated views; stored filenames
   are randomized; uploads validated by extension, magic bytes, and size
 - Audit trail for profile/measurement/max/program/nutrition/supplement/
@@ -85,7 +97,7 @@ python manage.py check --deploy --settings=config.settings.prod
 
 | Command | Purpose |
 |---|---|
-| `seed_demo [--flush-demo]` | Create demo users + sample data |
+| `seed_demo [--flush-demo] [--allow-production]` | Create disposable demo users + sample data. Production use is blocked unless explicitly allowed; generated passwords are random |
 | `backup_db [--output DIR]` | Safe SQLite online backup to `backups/` |
 | `cleanup_files [--apply] [--days N] [--purge-imported]` | Remove abandoned/rejected/orphaned uploads and stale previews (dry-run by default). `--purge-imported` also deletes source spreadsheets whose data is already imported |
 
@@ -110,8 +122,11 @@ python manage.py check --deploy --settings=config.settings.prod
    ```bash
    python manage.py migrate
    python manage.py collectstatic --noinput
-   python manage.py createsuperuser        # or seed_demo for a demo
+   python manage.py createsuperuser
    ```
+   For a disposable staging/demo site only, use
+   `python manage.py seed_demo --allow-production` and store the randomly
+   generated passwords printed once by the command.
 5. **Web app**: Web tab → *Add a new web app* → *Manual configuration* →
    Python 3.11.
    - **Virtualenv**: `/home/YOURUSER/pt-app/venv`
@@ -208,10 +223,11 @@ views (serve via signed URLs or streaming).
   views, so a future REST API (e.g. Django REST Framework) for a mobile app
   can reuse the same services and authorization helpers
   (`core/services/access.py`).
-- Google Calendar export is stubbed by design: `GOOGLE_CALENDAR_ENABLED`
-  stays `False` until OAuth credentials are configured; only workout name,
-  date, time, duration, a short exercise summary, and a link back may ever be
-  sent — never measurements, injuries, or supplement data.
+- Google Calendar stays disabled until OAuth credentials are configured.
+  Athletes connect and sync explicitly; stale-event deletions are queued for
+  the next sync so program edits do not block a web worker. Only schedule
+  title, date, and a portal link are sent — never measurements, injuries,
+  coaching notes, nutrition, supplements, or workout logs.
 
 ---
 

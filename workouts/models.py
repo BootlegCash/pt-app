@@ -123,7 +123,7 @@ class SetLog(models.Model):
         ordering = ["exercise_id", "set_number"]
         constraints = [
             models.UniqueConstraint(
-                fields=["session", "workout_exercise", "exercise", "set_number"],
+                fields=["session", "workout_exercise", "exercise", "set_number", "is_warmup"],
                 name="unique_set_per_exercise_per_session",
             )
         ]

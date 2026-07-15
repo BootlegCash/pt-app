@@ -46,7 +46,7 @@
           {% if we.optional %}<span class="badge">optional</span>{% endif %}
           {% if we.warmup_sets %}<span class="muted"> +{{ we.warmup_sets }} warm-up</span>{% endif %}</td>
         <td>{{ we.target_sets }}×{{ we.rep_target_display }}</td>
-        <td>{% if we.target_weight_lb %}{{ we.target_weight_lb }} lb{% elif we.target_percentage %}{{ we.target_percentage }}%{% else %}—{% endif %}</td>
+         <td>{% if we.set_weight_targets_lb %}{{ we.set_weight_targets_lb|join:" / " }} lb{% elif we.target_weight_lb %}{{ we.target_weight_lb }} lb{% elif we.target_percentage %}{{ we.target_percentage }}%{% else %}—{% endif %}</td>
         <td>{{ we.effort_display|default:"—" }}{% if we.tempo %} · {{ we.tempo }}{% endif %}</td>
         <td>{% if we.rest_seconds %}{{ we.rest_seconds }}s{% else %}—{% endif %}</td>
         <td class="muted">{{ we.client_visible_notes|truncatechars:60 }}</td>

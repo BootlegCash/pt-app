@@ -8,8 +8,10 @@ the admin).
 """
 from datetime import date, timedelta
 from decimal import Decimal
+import secrets
 
-from django.core.management.base import BaseCommand
+from django.conf import settings
+from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
@@ -43,6 +45,10 @@ class Command(BaseCommand):
             "--flush-demo", action="store_true",
             help="Delete previously seeded demo users (admin/coach/athlete) first.",
         )
+        parser.add_argument(
+            "--allow-production", action="store_true",
+            help="Explicitly allow demo data in a non-debug environment.",
+        )
 
     @transaction.atomic
     def handle(self, *args, **options):
@@ -59,6 +65,12 @@ class Command(BaseCommand):
         from supplements.models import Supplement, UserSupplementRecommendation
         from workouts.models import SetLog, WorkoutSession
 
+        if not settings.DEBUG and not options["allow_production"]:
+            raise CommandError(
+                "Refusing to create demo accounts outside DEBUG mode. "
+                "Use --allow-production only for a disposable demo environment."
+            )
+
         if options["flush_demo"]:
             User.objects.filter(username__in=["admin", "coach", "athlete"]).delete()
             self.stdout.write("Removed existing demo users.")
@@ -70,23 +82,22 @@ class Command(BaseCommand):
             ))
             return
 
+        admin_password = secrets.token_urlsafe(18)
         admin = User.objects.create_superuser(
-            username="admin", email="admin@example.com", password="admin-demo-pass-123",
+            username="admin", email="admin@example.com", password=admin_password,
             first_name="Site", last_name="Admin", is_coach=True,
-            must_change_password=False,
+            must_change_password=True,
         )
         AthleteProfile.objects.create(user=admin)
         coach, coach_password = create_user_account(
             username="coach", email="coach@example.com",
             first_name="Casey", last_name="Coach",
-            is_coach=True, is_athlete=True,
-            temporary_password="coach-demo-pass-123", created_by=admin,
+            is_coach=True, is_athlete=True, created_by=admin,
         )
         athlete, athlete_password = create_user_account(
             username="athlete", email="athlete@example.com",
             first_name="Alex", last_name="Athlete",
-            is_athlete=True, coach=coach,
-            temporary_password="athlete-demo-pass-123", created_by=admin,
+            is_athlete=True, coach=coach, created_by=admin,
         )
 
         # --------------------------------------------------------- exercises
@@ -116,7 +127,7 @@ class Command(BaseCommand):
         profile.weekly_running_days = 1
         profile.save()
 
-        today = date.today()
+        today = timezone.localdate()
         for weeks_ago, weight, waist in [(4, 188.0, 34.5), (3, 187.2, 34.4),
                                          (2, 186.4, 34.2), (1, 185.8, 34.1), (0, 185.0, 34.0)]:
             Measurement.objects.create(
@@ -275,6 +286,6 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS("Demo data created."))
         self.stdout.write("Logins (change immediately on a real deployment):")
-        self.stdout.write("  admin   / admin-demo-pass-123   (administrator, no forced change)")
+        self.stdout.write(f"  admin   / {admin_password}   (must change at first login)")
         self.stdout.write(f"  coach   / {coach_password}   (must change at first login)")
         self.stdout.write(f"  athlete / {athlete_password}   (must change at first login)")

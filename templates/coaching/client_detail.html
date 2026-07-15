@@ -14,17 +14,18 @@
 </div>
 
 <div class="card-grid">
-  <a class="navcard" href="{% url 'coaching:client_profile_edit' client.uuid %}"><span class="icon" aria-hidden="true">👤</span><div class="title">Profile</div><div class="sub">edit details &amp; goals</div></a>
-  <a class="navcard" href="{% url 'coaching:client_measurements' client.uuid %}"><span class="icon" aria-hidden="true">📏</span><div class="title">Measurements</div><div class="sub">record &amp; review</div></a>
-  <a class="navcard" href="{% url 'coaching:client_maxes' client.uuid %}"><span class="icon" aria-hidden="true">🏆</span><div class="title">Maxes</div><div class="sub">record lifts</div></a>
-  <a class="navcard" href="{% url 'coaching:client_calendar' client.uuid %}"><span class="icon" aria-hidden="true">📅</span><div class="title">Calendar</div><div class="sub">schedule sessions</div></a>
-  <a class="navcard" href="{% url 'coaching:client_history' client.uuid %}"><span class="icon" aria-hidden="true">🏋️</span><div class="title">Workout history</div></a>
-  <a class="navcard" href="{% url 'nutrition:coach_calculator' client.uuid %}"><span class="icon" aria-hidden="true">🍽️</span><div class="title">Nutrition</div><div class="sub">calculator &amp; targets</div></a>
-  <a class="navcard" href="{% url 'supplements:coach_assign' client.uuid %}"><span class="icon" aria-hidden="true">💊</span><div class="title">Supplements</div></a>
+  <a class="navcard" href="{% url 'coaching:client_profile_edit' client.uuid %}"><svg class="icon-svg" aria-hidden="true"><use href="#i-user"/></svg><div class="title">Profile</div><div class="sub">edit details &amp; goals</div></a>
+  <a class="navcard" href="{% url 'coaching:client_measurements' client.uuid %}"><svg class="icon-svg" aria-hidden="true"><use href="#i-ruler"/></svg><div class="title">Measurements</div><div class="sub">record &amp; review</div></a>
+  <a class="navcard" href="{% url 'coaching:client_maxes' client.uuid %}"><svg class="icon-svg" aria-hidden="true"><use href="#i-trophy"/></svg><div class="title">Maxes</div><div class="sub">record lifts</div></a>
+  <a class="navcard" href="{% url 'coaching:client_calendar' client.uuid %}"><svg class="icon-svg" aria-hidden="true"><use href="#i-calendar"/></svg><div class="title">Calendar</div><div class="sub">schedule sessions</div></a>
+  <a class="navcard" href="{% url 'coaching:client_history' client.uuid %}"><svg class="icon-svg" aria-hidden="true"><use href="#i-barbell"/></svg><div class="title">Workout history</div></a>
+  <a class="navcard" href="{% url 'nutrition:coach_calculator' client.uuid %}"><svg class="icon-svg" aria-hidden="true"><use href="#i-plate"/></svg><div class="title">Nutrition</div><div class="sub">calculator &amp; targets</div></a>
+  <a class="navcard" href="{% url 'supplements:coach_assign' client.uuid %}"><svg class="icon-svg" aria-hidden="true"><use href="#i-pill"/></svg><div class="title">Supplements</div></a>
+  <a class="navcard" href="{% url 'imports:client_files' client.uuid %}"><svg class="icon-svg" aria-hidden="true"><use href="#i-folder"/></svg><div class="title">Files</div><div class="sub">uploads &amp; PDFs</div></a>
   {% if summary.profile.current_program %}
-  <a class="navcard" href="{% url 'programs:builder_detail' summary.profile.current_program.uuid %}"><span class="icon" aria-hidden="true">📋</span><div class="title">Program</div><div class="sub">{{ summary.profile.current_program.name|truncatechars:24 }}</div></a>
+  <a class="navcard" href="{% url 'programs:builder_detail' summary.profile.current_program.uuid %}"><svg class="icon-svg" aria-hidden="true"><use href="#i-clipboard"/></svg><div class="title">Program</div><div class="sub">{{ summary.profile.current_program.name|truncatechars:24 }}</div></a>
   {% else %}
-  <a class="navcard" href="{% url 'programs:builder_list' %}"><span class="icon" aria-hidden="true">📋</span><div class="title">Assign program</div><div class="sub">no active program</div></a>
+  <a class="navcard" href="{% url 'programs:builder_list' %}"><svg class="icon-svg" aria-hidden="true"><use href="#i-clipboard"/></svg><div class="title">Assign program</div><div class="sub">no active program</div></a>
   {% endif %}
 </div>
 

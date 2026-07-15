@@ -1,8 +1,7 @@
-from datetime import date as date_cls
-
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from core.services.access import get_client_or_404
@@ -19,7 +18,7 @@ from .services.weight_trend import trend_recommendation, weekly_averages
 def my_nutrition(request):
     """Client-facing nutrition page (view + optional daily check-ins)."""
     target = NutritionTarget.objects.filter(user=request.user).first()
-    today = date_cls.today()
+    today = timezone.localdate()
     checkin = NutritionCheckin.objects.filter(user=request.user, date=today).first()
     return render(request, "nutrition/my_nutrition.html", {
         "target": target,
@@ -34,7 +33,7 @@ def checkin(request):
     form = CheckinForm(request.POST)
     if form.is_valid():
         NutritionCheckin.objects.update_or_create(
-            user=request.user, date=date_cls.today(), defaults=form.cleaned_data
+            user=request.user, date=timezone.localdate(), defaults=form.cleaned_data
         )
         messages.success(request, "Check-in saved.")
     return redirect("nutrition:me")

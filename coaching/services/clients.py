@@ -1,5 +1,7 @@
 """Coach-dashboard summaries."""
-from datetime import date as date_cls, timedelta
+from datetime import timedelta
+
+from django.utils import timezone
 
 from coaching.models import CoachClientRelationship, ProgressionRecommendation
 
@@ -26,7 +28,7 @@ def client_summary(client):
     from workouts.services.history import weekly_adherence
 
     profile = AthleteProfile.objects.filter(user=client).select_related("current_program").first()
-    today = date_cls.today()
+    today = timezone.localdate()
     last_workout = WorkoutSession.objects.filter(
         user=client, status__in=["completed", "partial"]
     ).first()
