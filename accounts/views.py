@@ -1,10 +1,12 @@
 from django.conf import settings
-from django.contrib import messages
+from django.contrib import admin, messages
+from django.contrib.admin.forms import AdminAuthenticationForm
 from django.contrib.auth import logout, update_session_auth_hash, views as auth_views
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -16,9 +18,10 @@ from .models import LoginAttempt
 
 
 def _client_ip(request):
-    forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    if settings.TRUST_X_FORWARDED_FOR:
+        forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
     return request.META.get("REMOTE_ADDR")
 
 
@@ -26,10 +29,21 @@ def _login_blocked(request, username):
     window_start = timezone.now() - timezone.timedelta(
         minutes=settings.LOGIN_RATE_LIMIT_WINDOW_MINUTES
     )
-    recent = LoginAttempt.objects.filter(
-        username__iexact=username, created_at__gte=window_start
+    LoginAttempt.objects.filter(created_at__lt=window_start).delete()
+    ip_address = _client_ip(request)
+    recent = LoginAttempt.objects.filter(created_at__gte=window_start)
+    identifier_attempts = recent.filter(
+        username__iexact=username, ip_address=ip_address
     ).count()
-    return recent >= settings.LOGIN_RATE_LIMIT_ATTEMPTS
+    ip_attempts = recent.filter(ip_address=ip_address).count()
+    distributed_identifier_attempts = recent.filter(
+        username__iexact=username
+    ).count()
+    return (
+        identifier_attempts >= settings.LOGIN_RATE_LIMIT_ATTEMPTS
+        or ip_attempts >= settings.LOGIN_RATE_LIMIT_ATTEMPTS
+        or distributed_identifier_attempts >= settings.LOGIN_RATE_LIMIT_ATTEMPTS * 3
+    )
 
 
 class LoginView(auth_views.LoginView):
@@ -39,7 +53,8 @@ class LoginView(auth_views.LoginView):
 
     def form_valid(self, form):
         LoginAttempt.objects.filter(
-            username__iexact=form.cleaned_data.get("username", "")
+            ip_address=_client_ip(self.request),
+            username__iexact=self.request.POST.get("username", "")[:254],
         ).delete()
         return super().form_valid(form)
 
@@ -70,6 +85,23 @@ class LoginView(auth_views.LoginView):
 
     def form_invalid_direct(self, form):
         return self.render_to_response(self.get_context_data(form=form))
+
+
+class AdminLoginView(LoginView):
+    """Admin-compatible sign-in with the portal's failure throttling."""
+
+    template_name = "admin/login.html"
+    authentication_form = AdminAuthenticationForm
+    redirect_authenticated_user = False
+
+    def get_success_url(self):
+        return self.get_redirect_url() or reverse("admin:index")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(admin.site.each_context(self.request))
+        context["app_path"] = self.request.get_full_path()
+        return context
 
 
 @login_required
@@ -110,6 +142,7 @@ def export_data(request):
     response["Content-Disposition"] = (
         f'attachment; filename="{request.user.username}-data-export.json"'
     )
+    response["Cache-Control"] = "private, no-store"
     return response
 
 

@@ -3,6 +3,8 @@ dicts consumed by static/js/charts.js."""
 from collections import OrderedDict
 from datetime import timedelta
 
+from django.utils import timezone
+
 from profiles.models import Measurement
 from progress.services.one_rm import default_estimate
 
@@ -83,11 +85,9 @@ def adherence_chart(user, weeks=8):
 
 def volume_chart(user, weeks=8):
     """Weekly volume load (sum of weight×reps on completed sets)."""
-    from datetime import date as date_cls
-
     from workouts.models import SetLog
 
-    today = date_cls.today()
+    today = timezone.localdate()
     monday = today - timedelta(days=today.weekday())
     labels, data = [], []
     for offset in range(weeks - 1, -1, -1):

@@ -6,6 +6,7 @@ app_name = "imports"
 
 urlpatterns = [
     path("", views.my_files, name="my_files"),
+    path("coach-upload/", views.coach_upload, name="coach_upload"),
     path("excel/upload/", views.upload_excel, name="upload_excel"),
     path("excel/<uuid:job_uuid>/sheet/", views.select_sheet, name="select_sheet"),
     path("excel/<uuid:job_uuid>/mapping/", views.mapping, name="mapping"),

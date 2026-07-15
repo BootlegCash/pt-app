@@ -20,6 +20,7 @@
 <div class="card">
   <h2>Parsed plan</h2>
   {% include "imports/_parsed_table.html" with rows=rows %}
+  {% include "partials/pagination.html" with page_obj=page_obj %}
 </div>
 {% endif %}
 {% endblock %}

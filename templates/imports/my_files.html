@@ -56,14 +56,13 @@
   <h2>Reference PDFs</h2>
   {% if pdfs %}
   <div class="table-wrap"><table class="table">
-    <thead><tr><th>File</th><th>Pages</th><th>Uploaded</th><th>Coach notes</th><th></th></tr></thead>
+    <thead><tr><th>File</th><th>Pages</th><th>Uploaded</th><th></th></tr></thead>
     <tbody>
     {% for pdf in pdfs %}
     <tr>
       <td>{{ pdf.original_filename }} <span class="muted">({{ pdf.file_size|filesizeformat }})</span></td>
       <td>{{ pdf.page_count|default:"—" }}</td>
       <td class="muted">{{ pdf.uploaded_at|date:"M j, Y" }}</td>
-      <td class="muted">{{ pdf.coach_notes|truncatechars:40 }}</td>
       <td><a class="btn btn-sm" href="{% url 'imports:download_pdf' pdf.uuid %}">Open</a></td>
     </tr>
     {% endfor %}

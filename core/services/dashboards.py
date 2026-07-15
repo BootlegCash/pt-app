@@ -1,5 +1,6 @@
 """Athlete dashboard summary assembly."""
-from datetime import date as date_cls, timedelta
+
+from django.utils import timezone
 
 
 def athlete_dashboard_context(user):
@@ -9,7 +10,7 @@ def athlete_dashboard_context(user):
     from workouts.models import WorkoutSession
     from workouts.services.history import weekly_adherence
 
-    today = date_cls.today()
+    today = timezone.localdate()
     profile = (
         AthleteProfile.objects.filter(user=user)
         .select_related("current_program", "coach")

@@ -1,5 +1,4 @@
 import json
-from datetime import date as date_cls
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
@@ -43,7 +42,7 @@ def start_session(request, scheduled_uuid):
         session.scheduled_session = scheduled
         session.workout_day = scheduled.workout_day
         session.program = scheduled.program
-        session.date = date_cls.today()
+        session.date = timezone.localdate()
         session.save()
         if session.pain_today:
             messages.info(
@@ -121,7 +120,6 @@ def logger(request, session_uuid):
             "best": best_exercise_performance(request.user, prescription.exercise),
             "track_distance": (
                 prescription.exercise.exercise_category in DISTANCE_CATEGORIES
-                or bool(prescription.target_reps_text)
             ),
             "substitution": substitution,
             "resolved": resolved,

@@ -2,7 +2,9 @@
 from .base import *  # noqa: F401,F403
 from .base import env, env_bool
 
-DEBUG = env_bool("DEBUG", False)
+if env_bool("DEBUG", False):
+    raise RuntimeError("DEBUG must remain False in production.")
+DEBUG = False
 
 if env("SECRET_KEY") is None:
     raise RuntimeError("SECRET_KEY environment variable is required in production.")
@@ -16,10 +18,13 @@ X_FRAME_OPTIONS = "DENY"
 
 # PythonAnywhere terminates TLS at the load balancer.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-# Free PythonAnywhere accounts serve HTTPS but the WSGI app sees HTTP, so
-# redirect is optional; enable via env on hosts with proper forwarding.
-SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", False)
-SECURE_HSTS_SECONDS = int(env("SECURE_HSTS_SECONDS", "0"))
+# PythonAnywhere forwards the original scheme, so HTTPS enforcement is safe.
+# Other hosts may explicitly override these only when their proxy performs the
+# equivalent redirect/HSTS policy itself.
+SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", True)
+SECURE_HSTS_SECONDS = int(env("SECURE_HSTS_SECONDS", "31536000"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", True)
+SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", True)
 
 EMAIL_BACKEND = env(
     "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"

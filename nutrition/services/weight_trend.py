@@ -3,14 +3,16 @@
 Recommendations are advisory only: the coach applies (or ignores) them by
 editing the nutrition target, which is audited. Nothing changes automatically.
 """
-from datetime import date as date_cls, timedelta
+from datetime import timedelta
+
+from django.utils import timezone
 
 from profiles.models import Measurement
 
 
 def weekly_averages(user, weeks=6):
     """[(week_start, avg_bodyweight, n_readings)] oldest→newest."""
-    today = date_cls.today()
+    today = timezone.localdate()
     monday = today - timedelta(days=today.weekday())
     rows = []
     for offset in range(weeks - 1, -1, -1):

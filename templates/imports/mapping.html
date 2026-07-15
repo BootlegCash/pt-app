@@ -18,18 +18,18 @@
 
 <div class="card">
   <h2>Tell us which column is which</h2>
-  <p class="muted">Only Exercise is required. Rep formats like “8–12”, “10/leg”, “AMRAP”, or
-    “30 seconds” are handled automatically.</p>
+  <p class="muted">Only Exercise is required. Formats like “8–12”, “10/leg”, “AMRAP”,
+    “4 × 5 @ 80%”, “185/195/205”, “100 kg”, or “2 min” are interpreted automatically.</p>
   <form method="post">
     {% csrf_token %}
     <div class="form-grid">
-      {% for field, label in fields %}
+      {% for field, label, selected_column in fields %}
       <div class="form-row">
         <label for="map_{{ field }}">{{ label }}{% if field == 'exercise' %} *{% endif %}</label>
         <select id="map_{{ field }}" name="map_{{ field }}">
           <option value="">— not in file —</option>
           {% for index, name in columns %}
-            <option value="{{ index }}">Col {{ index }}: {{ name|truncatechars:24 }}</option>
+            <option value="{{ index }}"{% if selected_column == index %} selected{% endif %}>Col {{ index }}: {{ name|truncatechars:24 }}</option>
           {% endfor %}
         </select>
       </div>

@@ -1,8 +1,8 @@
 import uuid
-from datetime import date as date_cls
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 class GoogleCalendarConnection(models.Model):
@@ -18,6 +18,29 @@ class GoogleCalendarConnection(models.Model):
 
     def __str__(self):
         return f"Google Calendar for {self.user.username}"
+
+
+class GoogleCalendarDeletion(models.Model):
+    """Persistent deletion work processed on the athlete's next manual sync."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="google_calendar_deletions",
+    )
+    event_id = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    last_error = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "event_id"], name="unique_google_deletion_per_user"
+            )
+        ]
 
 
 class ScheduledSession(models.Model):
@@ -75,7 +98,7 @@ class ScheduledSession(models.Model):
     @property
     def effective_status(self):
         """Missed is derived: a scheduled trainable session whose date passed."""
-        if self.status == self.Status.SCHEDULED and self.date < date_cls.today():
+        if self.status == self.Status.SCHEDULED and self.date < timezone.localdate():
             if self.session_type in {
                 self.SessionType.LIFTING, self.SessionType.RUNNING,
                 self.SessionType.MOBILITY, self.SessionType.TESTING,
@@ -95,6 +118,6 @@ class ScheduledSession(models.Model):
             return "cal-partial"
         if status == self.Status.MISSED:
             return "cal-missed"
-        if self.date == date_cls.today():
+        if self.date == timezone.localdate():
             return "cal-today"
         return "cal-upcoming"

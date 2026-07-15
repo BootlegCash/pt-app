@@ -1,5 +1,8 @@
 """Previous/best performance lookups shown in the logger and day detail."""
-from django.db.models import Max
+from datetime import timedelta
+
+from django.db.models import F, Max
+from django.utils import timezone
 
 from workouts.models import SetLog, WorkoutSession
 
@@ -96,24 +99,28 @@ def exercise_history(user, exercise):
 
 def session_completion(session):
     """(completed_sets, prescribed_sets) for a session against its day template."""
-    prescribed = 0
-    if session.workout_day:
-        prescribed = sum(
-            we.target_sets for we in session.workout_day.exercises.filter(
-                active=True, optional=False
-            )
-        )
-    completed = session.set_logs.filter(completed=True, is_warmup=False).count()
+    if not session.workout_day:
+        return 0, 0
+
+    required_exercises = session.workout_day.exercises.filter(
+        active=True, optional=False
+    )
+    prescribed = sum(we.target_sets for we in required_exercises)
+    completed = session.set_logs.filter(
+        completed=True,
+        is_warmup=False,
+        is_extra=False,
+        workout_exercise__in=required_exercises,
+        set_number__lte=F("workout_exercise__target_sets"),
+    ).count()
     return completed, prescribed
 
 
 def weekly_adherence(user, weeks=4):
     """Completed vs scheduled trainable sessions for recent weeks."""
-    from datetime import date as date_cls, timedelta
-
     from calendar_app.models import ScheduledSession
 
-    today = date_cls.today()
+    today = timezone.localdate()
     monday = today - timedelta(days=today.weekday())
     rows = []
     for offset in range(weeks - 1, -1, -1):

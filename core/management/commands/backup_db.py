@@ -8,6 +8,7 @@ Uses the SQLite online-backup API so a live database is copied safely.
 For PostgreSQL deployments use pg_dump instead (see README).
 """
 import sqlite3
+import os
 from pathlib import Path
 
 from django.conf import settings
@@ -32,7 +33,9 @@ class Command(BaseCommand):
         if not source_path.exists():
             raise CommandError(f"Database file not found: {source_path}")
         output_dir = Path(options["output"] or (settings.BASE_DIR / "backups"))
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if os.name == "posix":
+            output_dir.chmod(0o700)
         stamp = timezone.now().strftime("%Y%m%d-%H%M%S")
         target_path = output_dir / f"db-{stamp}.sqlite3"
 
@@ -44,6 +47,8 @@ class Command(BaseCommand):
         finally:
             source.close()
             target.close()
+        if os.name == "posix":
+            target_path.chmod(0o600)
         self.stdout.write(self.style.SUCCESS(f"Backup written to {target_path}"))
         self.stdout.write(
             "Remember to also copy the private_media/ directory for a full backup."

@@ -4,17 +4,20 @@
 <div class="page-head"><h1>Review the interpreted plan</h1>
   <span class="muted">{{ job.original_filename }} · {{ total }} row{{ total|pluralize }}</span></div>
 
-<div class="alert alert-info">Check that everything was read correctly, then submit for your
-  coach's approval. Your current program is not affected until your coach approves and
-  assigns the imported plan.</div>
+<div class="alert alert-info">Check that everything was read correctly, then
+  {% if coach_upload %}create an editable draft. It will not be assigned to a client automatically.{% else %}submit for your coach's approval. Your current program is not affected until your coach approves and assigns the imported plan.{% endif %}</div>
+{% if job.mapping_configuration.mode == 'automatic_multi_sheet' %}
+<div class="alert alert-info">PT Portal filled in the structure it could recognize. Values marked “Guessed” were inferred from the load, prescription text, notes, or workout order. Use “Fix mapping” if any interpretation is wrong.</div>
+{% endif %}
 
 <div class="card">
   {% include "imports/_parsed_table.html" with rows=rows %}
+  {% include "partials/pagination.html" with page_obj=page_obj %}
 </div>
 
 <form method="post" class="sticky-actions">
   {% csrf_token %}
-  <button type="submit" class="btn btn-primary btn-block">Submit for coach approval</button>
-  <a class="btn" href="{% url 'imports:mapping' job.uuid %}">← Fix mapping</a>
+  <button type="submit" class="btn btn-primary btn-block">{% if coach_upload %}Create draft program{% else %}Submit for coach approval{% endif %}</button>
+  <a class="btn" href="{% url 'imports:mapping' job.uuid %}{% if job.mapping_configuration.mode == 'automatic_multi_sheet' %}?manual=1{% endif %}">← Fix mapping</a>
 </form>
 {% endblock %}

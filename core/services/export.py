@@ -53,5 +53,7 @@ def export_user_data(user):
             UserSupplementRecommendation.objects.filter(user=user),
         ),
         "uploads": _serialize(ImportJob.objects.filter(user=user), exclude=("parsed_data", "preview_data")),
-        "reference_files": _serialize(ReferenceFile.objects.filter(user=user)),
+        "reference_files": _serialize(
+            ReferenceFile.objects.filter(user=user), exclude=("coach_notes",)
+        ),
     }

@@ -1,7 +1,8 @@
 from django.test import TestCase, override_settings
 from django.urls import NoReverseMatch, reverse
+from django.utils import timezone
 
-from accounts.models import User
+from accounts.models import LoginAttempt, User
 from accounts.services import create_user_account
 from core.tests.utils import make_admin, make_user
 
@@ -48,6 +49,19 @@ class AccountCreationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(User.objects.filter(username="fresh").exists())
 
+    def test_admin_cannot_create_user_with_weak_temporary_password(self):
+        admin = make_admin()
+        self.client.force_login(admin)
+
+        response = self.client.post(reverse("coaching:create_user"), {
+            "username": "weakuser", "email": "weak@example.com",
+            "is_athlete": "on", "active": "on", "temporary_password": "duck",
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "too short")
+        self.assertFalse(User.objects.filter(username="weakuser").exists())
+
 
 class LoginTests(TestCase):
     def test_login_with_username_and_email(self):
@@ -79,6 +93,107 @@ class LoginTests(TestCase):
         response = self.client.post(url, {"username": "target", "password": "secret-pass-999"})
         self.assertContains(response, "Too many failed attempts", status_code=200)
 
+    @override_settings(LOGIN_RATE_LIMIT_ATTEMPTS=3)
+    def test_failed_attempts_do_not_lock_user_out_from_another_ip(self):
+        make_user("target", password="secret-pass-999")
+        url = reverse("accounts:login")
+        for _ in range(3):
+            self.client.post(
+                url, {"username": "target", "password": "wrong"},
+                REMOTE_ADDR="203.0.113.10",
+            )
+        response = self.client.post(
+            url, {"username": "target", "password": "secret-pass-999"},
+            REMOTE_ADDR="203.0.113.20",
+        )
+        self.assertEqual(response.status_code, 302)
+
+    @override_settings(LOGIN_RATE_LIMIT_ATTEMPTS=3, TRUST_X_FORWARDED_FOR=False)
+    def test_spoofed_forwarded_addresses_do_not_bypass_ip_limit(self):
+        make_user("target", password="secret-pass-999")
+        url = reverse("accounts:login")
+        for index in range(3):
+            self.client.post(
+                url, {"username": "target", "password": "wrong"},
+                REMOTE_ADDR="203.0.113.10",
+                HTTP_X_FORWARDED_FOR=f"198.51.100.{index}",
+            )
+
+        response = self.client.post(
+            url, {"username": "target", "password": "secret-pass-999"},
+            REMOTE_ADDR="203.0.113.10",
+            HTTP_X_FORWARDED_FOR="198.51.100.99",
+        )
+
+        self.assertContains(response, "Too many failed attempts", status_code=200)
+
+    @override_settings(LOGIN_RATE_LIMIT_ATTEMPTS=3)
+    def test_successful_login_does_not_clear_failures_for_another_account(self):
+        make_user("victim", password="victim-pass-999")
+        make_user("attacker", password="attacker-pass-999")
+        url = reverse("accounts:login")
+        for _ in range(2):
+            self.client.post(url, {"username": "victim", "password": "wrong"})
+        self.client.post(
+            url, {"username": "attacker", "password": "attacker-pass-999"}
+        )
+        self.client.logout()
+        self.client.post(url, {"username": "victim", "password": "wrong"})
+
+        response = self.client.post(
+            url, {"username": "victim", "password": "victim-pass-999"}
+        )
+
+        self.assertContains(response, "Too many failed attempts", status_code=200)
+
+    def test_expired_login_attempts_are_pruned(self):
+        attempt = LoginAttempt.objects.create(
+            username="old", ip_address="203.0.113.10"
+        )
+        LoginAttempt.objects.filter(pk=attempt.pk).update(
+            created_at=timezone.now() - timezone.timedelta(days=1)
+        )
+
+        self.client.post(
+            reverse("accounts:login"),
+            {"username": "current", "password": "wrong"},
+            REMOTE_ADDR="203.0.113.10",
+        )
+
+        self.assertFalse(LoginAttempt.objects.filter(pk=attempt.pk).exists())
+
+    @override_settings(LOGIN_RATE_LIMIT_ATTEMPTS=2)
+    def test_admin_login_uses_same_throttle(self):
+        admin = make_admin()
+        for _ in range(2):
+            self.client.post(
+                "/admin/login/", {"username": admin.username, "password": "wrong"}
+            )
+        response = self.client.post(
+            "/admin/login/",
+            {"username": admin.username, "password": "adminpass-12345"},
+        )
+        self.assertContains(response, "Too many failed attempts", status_code=200)
+
+    def test_authenticated_nonstaff_admin_visit_does_not_redirect_loop(self):
+        athlete = make_user()
+        self.client.force_login(athlete)
+
+        response = self.client.get("/admin/", follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertLessEqual(len(response.redirect_chain), 2)
+
+    def test_staff_admin_login_returns_to_admin(self):
+        admin_user = make_admin()
+
+        response = self.client.post(
+            "/admin/login/?next=/admin/",
+            {"username": admin_user.username, "password": "adminpass-12345"},
+        )
+
+        self.assertRedirects(response, "/admin/", fetch_redirect_response=False)
+
 
 class ForcedPasswordChangeTests(TestCase):
     def test_redirects_until_password_changed(self):
@@ -101,6 +216,7 @@ class DataExportDeactivationTests(TestCase):
         self.client.force_login(user)
         response = self.client.get(reverse("accounts:export_data"))
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Cache-Control"], "private, no-store")
         payload = response.json()
         self.assertEqual(payload["account"]["username"], user.username)
 

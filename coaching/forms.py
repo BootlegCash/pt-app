@@ -1,4 +1,5 @@
 from django import forms
+from django.contrib.auth.password_validation import validate_password
 
 from accounts.models import User
 from progress.models import LiftMax
@@ -34,6 +35,12 @@ class CreateUserForm(forms.Form):
             raise forms.ValidationError("That email is already in use.")
         return email
 
+    def clean_temporary_password(self):
+        password = self.cleaned_data.get("temporary_password", "")
+        if password:
+            validate_password(password)
+        return password
+
     def clean(self):
         cleaned = super().clean()
         if not cleaned.get("is_coach") and not cleaned.get("is_athlete"):
@@ -64,6 +71,6 @@ class PrivateNotesForm(forms.Form):
 class ReviewForm(forms.Form):
     note = forms.CharField(required=False, widget=forms.Textarea(attrs={"rows": 2}))
     modified_amount = forms.DecimalField(
-        required=False, max_digits=5, decimal_places=1,
+        required=False, max_digits=5, decimal_places=1, min_value=0.1,
         help_text="Override the recommended weight change (lb).",
     )

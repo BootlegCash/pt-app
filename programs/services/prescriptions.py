@@ -42,6 +42,6 @@ def prescribed_weight_for_set(prescription, user, set_number):
     """Return the editable default for one working set."""
     targets = prescription.set_weight_targets_lb or []
     index = set_number - 1
-    if 0 <= index < len(targets) and targets[index] not in (None, ""):
-        return targets[index]
+    if 0 <= index < len(targets):
+        return targets[index] if targets[index] not in (None, "") else None
     return resolve_prescribed_weight(prescription, user)["weight"]

@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 from google_auth_oauthlib.flow import Flow
 
@@ -19,6 +20,7 @@ from .services.google_calendar import (
     configured as google_calendar_configured,
     delete_session_event,
     encrypt_credentials,
+    revoke_connection,
     sync_session,
     sync_upcoming_sessions,
 )
@@ -34,7 +36,7 @@ def _parse_date(raw, fallback):
 
 @login_required
 def my_week(request):
-    start = _parse_date(request.GET.get("start"), date_cls.today())
+    start = _parse_date(request.GET.get("start"), timezone.localdate())
     return render(request, "calendar_app/week.html", {
         "grid": week_grid(request.user, start),
         "athlete": request.user,
@@ -102,8 +104,26 @@ def google_callback(request):
 @login_required
 @require_POST
 def google_disconnect(request):
-    GoogleCalendarConnection.objects.filter(user=request.user).delete()
-    messages.success(request, "Google Calendar disconnected. Existing Google events were left unchanged.")
+    connection = GoogleCalendarConnection.objects.filter(user=request.user).first()
+    revoked = True
+    if connection:
+        try:
+            revoked = revoke_connection(connection)
+        except Exception:
+            revoked = False
+        connection.delete()
+    if revoked:
+        messages.success(
+            request,
+            "Google Calendar disconnected and its access token was revoked. "
+            "Existing Google events were left unchanged.",
+        )
+    else:
+        messages.warning(
+            request,
+            "Google Calendar was disconnected locally, but Google did not confirm token "
+            "revocation. Remove PT Portal from your Google Account permissions to finish.",
+        )
     return redirect("calendar_app:week")
 
 
@@ -118,7 +138,7 @@ def google_sync(request):
 
 @login_required
 def my_month(request):
-    today = date_cls.today()
+    today = timezone.localdate()
     try:
         year = int(request.GET.get("year", today.year))
         month = int(request.GET.get("month", today.month))
@@ -170,14 +190,30 @@ class SessionForm(forms.ModelForm):
         fields = ["date", "session_type", "title", "workout_day", "notes"]
         widgets = {"date": forms.DateInput(attrs={"type": "date"})}
 
+    def __init__(self, *args, client=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        from programs.models import WorkoutDayTemplate
+
+        queryset = WorkoutDayTemplate.objects.none()
+        if client is not None:
+            queryset = WorkoutDayTemplate.objects.filter(
+                program_week__program__assigned_to=client
+            )
+        self.fields["workout_day"].queryset = queryset.select_related(
+            "program_week__program"
+        )
+
 
 @login_required
 def coach_session_create(request, client_uuid):
     client = get_client_or_404(request.user, client_uuid, manage=True)
-    form = SessionForm(request.POST or None)
+    form = SessionForm(request.POST or None, client=client)
     if request.method == "POST" and form.is_valid():
         session = form.save(commit=False)
         session.user = client
+        session.program = (
+            session.workout_day.program_week.program if session.workout_day else None
+        )
         session.save()
         connection = GoogleCalendarConnection.objects.filter(user=client).first()
         if connection:
@@ -196,9 +232,13 @@ def coach_session_create(request, client_uuid):
 def coach_session_edit(request, session_uuid):
     session = get_object_or_404(ScheduledSession, uuid=session_uuid)
     client = get_client_or_404(request.user, session.user.uuid, manage=True)
-    form = SessionForm(request.POST or None, instance=session)
+    form = SessionForm(request.POST or None, instance=session, client=client)
     if request.method == "POST" and form.is_valid():
-        session = form.save()
+        session = form.save(commit=False)
+        session.program = (
+            session.workout_day.program_week.program if session.workout_day else None
+        )
+        session.save()
         connection = GoogleCalendarConnection.objects.filter(user=client).first()
         if connection:
             try:

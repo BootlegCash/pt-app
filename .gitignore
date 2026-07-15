@@ -12,6 +12,7 @@ media/
 private_media/
 backups/
 django-error.log
+django-server.log
 
 # Editors / OS
 .vscode/

@@ -88,6 +88,16 @@
   <h2>Assign this program</h2>
   <p class="muted">Assigning replaces the client's current program pointer and regenerates
     their scheduled (not yet completed) calendar sessions.</p>
+  {% if has_assignable_clients %}
+  <form method="post">
+    {% csrf_token %}
+    {{ assign_form.as_p }}
+    <button class="btn btn-primary" type="submit">
+      {% if program.assigned_to %}Save assignment and schedule{% else %}Assign program and create schedule{% endif %}
+    </button>
+  </form>
+  {% else %}
   <a class="btn" href="{% url 'coaching:client_list' %}">Choose a client from your list →</a>
+  {% endif %}
 </div>
 {% endblock %}

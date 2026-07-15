@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.services import create_user_account
@@ -44,7 +45,7 @@ def dashboard(request):
     pain_flags = sum(s["pain_flags"] for s in summaries)
     stale_programs = Program.objects.filter(
         owner=request.user, status=Program.Status.ACTIVE,
-        planned_end_date__lt=date_cls.today(),
+        planned_end_date__lt=timezone.localdate(),
     ).count()
     relationships = {
         relationship.client_id: relationship
@@ -138,7 +139,7 @@ def client_profile_edit(request, client_uuid):
 @login_required
 def client_measurements(request, client_uuid):
     client = get_client_or_404(request.user, client_uuid, manage=True)
-    form = MeasurementForm(request.POST or None, initial={"date": date_cls.today()})
+    form = MeasurementForm(request.POST or None, initial={"date": timezone.localdate()})
     if request.method == "POST" and form.is_valid():
         measurement = form.save(commit=False)
         measurement.user = client
@@ -165,7 +166,7 @@ def client_measurements(request, client_uuid):
 @login_required
 def client_maxes(request, client_uuid):
     client = get_client_or_404(request.user, client_uuid, manage=True)
-    form = LiftMaxForm(request.POST or None, initial={"date": date_cls.today()})
+    form = LiftMaxForm(request.POST or None, initial={"date": timezone.localdate()})
     if request.method == "POST" and form.is_valid():
         lift_max = form.save(commit=False)
         lift_max.user = client
@@ -191,7 +192,7 @@ def client_maxes(request, client_uuid):
 def client_calendar(request, client_uuid):
     client = get_client_or_404(request.user, client_uuid)
     view = request.GET.get("view", "week")
-    today = date_cls.today()
+    today = timezone.localdate()
     if view == "month":
         try:
             year = int(request.GET.get("year", today.year))
@@ -280,7 +281,9 @@ def _get_reviewable(request, rec_uuid):
 def progression_approve(request, rec_uuid):
     recommendation = _get_reviewable(request, rec_uuid)
     form = ReviewForm(request.POST)
-    form.is_valid()
+    if not form.is_valid():
+        messages.error(request, "Enter a positive weight adjustment.")
+        return redirect("coaching:progression_approvals")
     apply_recommendation(
         recommendation,
         reviewed_by=request.user,
@@ -296,7 +299,9 @@ def progression_approve(request, rec_uuid):
 def progression_reject(request, rec_uuid):
     recommendation = _get_reviewable(request, rec_uuid)
     form = ReviewForm(request.POST)
-    form.is_valid()
+    if not form.is_valid():
+        messages.error(request, "The review could not be saved.")
+        return redirect("coaching:progression_approvals")
     reject_recommendation(
         recommendation, reviewed_by=request.user, note=form.cleaned_data.get("note", "")
     )

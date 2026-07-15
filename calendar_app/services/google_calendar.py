@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 from datetime import timedelta
 
+import requests
 from cryptography.fernet import Fernet
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -18,6 +19,7 @@ from django.utils import timezone
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
 
@@ -66,8 +68,6 @@ def _event_body(session) -> dict:
         "calendar_app:day_detail", kwargs={"session_uuid": session.uuid}
     )
     description = "Scheduled in PT Portal.\nOpen your workout: " + day_url
-    if session.notes:
-        description += "\n\nCoach note: " + session.notes[:500]
     return {
         "summary": session.title,
         "description": description,
@@ -77,9 +77,18 @@ def _event_body(session) -> dict:
     }
 
 
-def sync_session(connection, session) -> None:
+def _calendar_service(connection):
+    return build(
+        "calendar",
+        "v3",
+        credentials=credentials_for(connection),
+        cache_discovery=False,
+    )
+
+
+def sync_session(connection, session, *, service=None) -> None:
     """Create or update one all-day workout event in the athlete's calendar."""
-    service = build("calendar", "v3", credentials=credentials_for(connection), cache_discovery=False)
+    service = service or _calendar_service(connection)
     body = _event_body(session)
     if session.google_event_id:
         event = service.events().update(
@@ -92,21 +101,72 @@ def sync_session(connection, session) -> None:
     session.save(update_fields=["google_event_id", "google_synced_at"])
 
 
-def delete_session_event(connection, session) -> None:
+def delete_session_event(connection, session, *, service=None) -> None:
     if not session.google_event_id:
         return
-    service = build("calendar", "v3", credentials=credentials_for(connection), cache_discovery=False)
-    service.events().delete(calendarId=connection.calendar_id, eventId=session.google_event_id).execute()
+    delete_event_by_id(connection, session.google_event_id, service=service)
+
+
+def delete_event_by_id(connection, event_id, *, service=None) -> None:
+    """Delete a known remote event without requiring its local row to exist."""
+    service = service or _calendar_service(connection)
+    service.events().delete(calendarId=connection.calendar_id, eventId=event_id).execute()
+
+
+def revoke_connection(connection) -> bool:
+    """Revoke the provider token before removing the local connection."""
+    credentials = credentials_for(connection)
+    token = credentials.refresh_token or credentials.token
+    if not token:
+        return True
+    response = requests.post(
+        "https://oauth2.googleapis.com/revoke",
+        data={"token": token},
+        headers={"content-type": "application/x-www-form-urlencoded"},
+        timeout=10,
+    )
+    return response.status_code in {200, 400}
+
+
+def _process_pending_deletions(connection, service) -> int:
+    """Process durable stale-event deletions, returning the failure count."""
+    from calendar_app.models import GoogleCalendarDeletion
+
+    failures = 0
+    for deletion in GoogleCalendarDeletion.objects.filter(
+        user=connection.user, processed_at__isnull=True
+    )[:500]:
+        try:
+            delete_event_by_id(connection, deletion.event_id, service=service)
+        except HttpError as error:
+            if getattr(error.resp, "status", None) not in {404, 410}:
+                deletion.attempts += 1
+                deletion.last_error = str(error)[:1000]
+                deletion.save(update_fields=["attempts", "last_error"])
+                failures += 1
+                continue
+        except Exception as error:
+            deletion.attempts += 1
+            deletion.last_error = str(error)[:1000]
+            deletion.save(update_fields=["attempts", "last_error"])
+            failures += 1
+            continue
+        deletion.processed_at = timezone.now()
+        deletion.last_error = ""
+        deletion.save(update_fields=["processed_at", "last_error"])
+    return failures
 
 
 def sync_upcoming_sessions(connection) -> tuple[int, int]:
     """Sync future sessions, returning (sent, failures) without stopping halfway."""
     from calendar_app.models import ScheduledSession
 
-    sent = failures = 0
+    service = _calendar_service(connection)
+    sent = 0
+    failures = _process_pending_deletions(connection, service)
     for session in ScheduledSession.objects.filter(user=connection.user, date__gte=timezone.localdate()):
         try:
-            sync_session(connection, session)
+            sync_session(connection, session, service=service)
             sent += 1
         except Exception:
             failures += 1

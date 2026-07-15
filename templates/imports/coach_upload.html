@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Import a program{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Import a program</h1></div>
+<div class="card">
+  <h2>Upload a workout spreadsheet</h2>
+  <p class="muted">Upload an .xlsx or .csv file up to {{ max_excel_mb }} MB. PT Portal will try to identify weeks, workout days, exercises, sets, reps, pounds, percentages, effort, rest, notes, and a sensible training-week schedule. Every guess is shown for review and remains editable before an unassigned draft is created.</p>
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {% include "partials/form.html" with form=form %}
+    <button type="submit" class="btn btn-primary">Upload and interpret program</button>
+    <a class="btn" href="{% url 'coaching:dashboard' %}">Cancel</a>
+  </form>
+</div>
+{% endblock %}

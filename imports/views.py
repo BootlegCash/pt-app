@@ -3,6 +3,7 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.paginator import Paginator
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -15,9 +16,13 @@ from .models import ImportJob, ReferenceFile
 from .services.excel_parser import (
     MAPPABLE_FIELDS,
     PREVIEW_ROWS,
+    WorkbookLimitError,
+    auto_parse_workbook,
+    detect_header_row,
     list_sheets,
     parse_mapped_rows,
     read_rows,
+    suggest_column_mapping,
 )
 from .services.program_builder import build_draft_program
 from .services.validation import (
@@ -54,6 +59,28 @@ class PdfUploadForm(forms.Form):
         return upload
 
 
+def _try_smart_workbook_import(job):
+    """Save an auto-detected multi-week workbook, or leave the job untouched."""
+    try:
+        parsed = auto_parse_workbook(job.uploaded_file, _job_extension(job))
+    except WorkbookLimitError:
+        raise
+    except Exception:
+        return False
+    if not parsed:
+        return False
+    weeks = sorted({row["week"] for row in parsed})
+    job.selected_sheet = f"Auto-detected {len(weeks)} workout sheet(s)"
+    job.status = ImportJob.Status.MAPPING
+    job.mapping_configuration = {"mode": "automatic_multi_sheet", "weeks": weeks}
+    job.preview_data = parsed[:PREVIEW_ROWS]
+    job.parsed_data = parsed
+    job.save(update_fields=[
+        "selected_sheet", "status", "mapping_configuration", "preview_data", "parsed_data",
+    ])
+    return True
+
+
 @login_required
 def my_files(request):
     return render(request, "imports/my_files.html", {
@@ -63,6 +90,47 @@ def my_files(request):
         "pdf_form": PdfUploadForm(),
         "max_excel_mb": settings.MAX_EXCEL_UPLOAD_MB,
         "max_pdf_mb": settings.MAX_PDF_UPLOAD_MB,
+    })
+
+
+@login_required
+def coach_upload(request):
+    """Let a coach import a workbook into their own draft programme library."""
+    if not is_coach(request.user):
+        raise PermissionDenied
+    if request.method == "POST":
+        if _upload_rate_limited(request.user):
+            messages.error(request, "Upload limit reached — please try again later.")
+            return redirect("imports:coach_upload")
+        form = ExcelUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            upload = form.cleaned_data["file"]
+            job = ImportJob.objects.create(
+                user=request.user,
+                uploaded_file=upload,
+                original_filename=sanitize_filename(upload.name),
+                file_size=upload.size,
+            )
+            try:
+                smart_imported = _try_smart_workbook_import(job)
+            except WorkbookLimitError as error:
+                job.status = ImportJob.Status.ERROR
+                job.error_message = str(error)
+                job.save(update_fields=["status", "error_message"])
+                messages.error(request, str(error))
+                return redirect("imports:coach_upload")
+            if smart_imported:
+                messages.success(
+                    request,
+                    f"Detected {len({row['week'] for row in job.parsed_data})} workout weeks and "
+                    f"{len(job.parsed_data)} exercises automatically.",
+                )
+                return redirect("imports:review_parsed", job_uuid=job.uuid)
+            return redirect("imports:select_sheet", job_uuid=job.uuid)
+    else:
+        form = ExcelUploadForm()
+    return render(request, "imports/coach_upload.html", {
+        "form": form, "max_excel_mb": settings.MAX_EXCEL_UPLOAD_MB,
     })
 
 
@@ -121,6 +189,46 @@ def mapping(request, job_uuid):
     job = get_object_or_404(ImportJob, uuid=job_uuid, user=request.user)
     if job.status != ImportJob.Status.MAPPING:
         return redirect("imports:job_detail", job_uuid=job.uuid)
+    if (
+        request.method == "GET"
+        and request.GET.get("manual") == "1"
+        and job.mapping_configuration.get("mode") == "automatic_multi_sheet"
+    ):
+        job.selected_sheet = ""
+        job.mapping_configuration = {"mode": "manual"}
+        job.preview_data = []
+        job.parsed_data = []
+        job.save(update_fields=[
+            "selected_sheet", "mapping_configuration", "preview_data", "parsed_data",
+        ])
+        messages.info(request, "Choose a worksheet to map manually.")
+        return redirect("imports:select_sheet", job_uuid=job.uuid)
+    if (
+        job.parsed_data
+        and job.mapping_configuration.get("mode") == "automatic_multi_sheet"
+    ):
+        return redirect("imports:review_parsed", job_uuid=job.uuid)
+    if (
+        request.method == "GET"
+        and is_coach(request.user)
+        and not job.parsed_data
+        and job.mapping_configuration.get("mode") != "manual"
+    ):
+        try:
+            smart_imported = _try_smart_workbook_import(job)
+        except WorkbookLimitError as error:
+            job.status = ImportJob.Status.ERROR
+            job.error_message = str(error)
+            job.save(update_fields=["status", "error_message"])
+            messages.error(request, str(error))
+            return redirect("imports:coach_upload")
+        if smart_imported:
+            messages.success(
+                request,
+                f"Detected {len({row['week'] for row in job.parsed_data})} workout weeks and "
+                f"{len(job.parsed_data)} exercises automatically.",
+            )
+            return redirect("imports:review_parsed", job_uuid=job.uuid)
     try:
         rows = read_rows(job.uploaded_file, _job_extension(job), job.selected_sheet or None)
     except Exception:
@@ -132,8 +240,10 @@ def mapping(request, job_uuid):
     if not rows:
         messages.error(request, "The selected worksheet is empty.")
         return redirect("imports:select_sheet", job_uuid=job.uuid)
-    header = rows[0]
-    preview = rows[:PREVIEW_ROWS]
+    header_index, suggested_mapping = detect_header_row(rows)
+    mapping_rows = rows[header_index:]
+    header = mapping_rows[0]
+    preview = mapping_rows[:PREVIEW_ROWS]
 
     if request.method == "POST":
         mapping_config = {}
@@ -142,12 +252,18 @@ def mapping(request, job_uuid):
             if raw.isdigit() and int(raw) < len(header):
                 mapping_config[field] = int(raw)
         has_header = request.POST.get("has_header") == "on"
-        parsed, errors = parse_mapped_rows(rows, mapping_config, has_header=has_header)
+        parsed, errors = parse_mapped_rows(
+            mapping_rows, mapping_config, has_header=has_header
+        )
         if errors:
             for error in errors:
                 messages.error(request, error)
         else:
-            job.mapping_configuration = {"columns": mapping_config, "has_header": has_header}
+            job.mapping_configuration = {
+                "columns": mapping_config,
+                "has_header": has_header,
+                "header_row": header_index + 1,
+            }
             job.preview_data = preview
             job.parsed_data = parsed
             job.save(update_fields=["mapping_configuration", "preview_data", "parsed_data"])
@@ -157,18 +273,36 @@ def mapping(request, job_uuid):
         "job": job,
         "header": header,
         "preview": preview,
-        "fields": MAPPABLE_FIELDS,
+        "fields": [
+            (field, label, suggested_mapping.get(field))
+            for field, label in MAPPABLE_FIELDS
+        ],
         "columns": list(enumerate(header)),
     })
 
 
 @login_required
 def review_parsed(request, job_uuid):
-    """Client previews the interpreted plan, then submits it for approval."""
+    """Preview a mapped plan before client submission or coach draft creation."""
     job = get_object_or_404(ImportJob, uuid=job_uuid, user=request.user)
     if job.status != ImportJob.Status.MAPPING or not job.parsed_data:
         return redirect("imports:job_detail", job_uuid=job.uuid)
+    coach_upload = is_coach(request.user)
     if request.method == "POST":
+        if coach_upload:
+            try:
+                program = build_draft_program(job, coach=request.user)
+            except ValueError as error:
+                job.status = ImportJob.Status.ERROR
+                job.error_message = str(error)
+                job.save(update_fields=["status", "error_message"])
+                messages.error(request, f"Import failed: {error}")
+                return redirect("imports:coach_upload")
+            messages.success(
+                request,
+                f"Draft program “{program.name}” created. Review it before assigning it.",
+            )
+            return redirect("programs:builder_detail", program_uuid=program.uuid)
         job.status = ImportJob.Status.SUBMITTED
         job.submitted_at = timezone.now()
         job.save(update_fields=["status", "submitted_at"])
@@ -177,8 +311,13 @@ def review_parsed(request, job_uuid):
             "Submitted for coach approval. You'll see the result on this page.",
         )
         return redirect("imports:my_files")
+    page_obj = Paginator(job.parsed_data, 100).get_page(request.GET.get("page"))
     return render(request, "imports/review_parsed.html", {
-        "job": job, "rows": job.parsed_data[:100], "total": len(job.parsed_data),
+        "job": job,
+        "rows": page_obj.object_list,
+        "page_obj": page_obj,
+        "total": len(job.parsed_data),
+        "coach_upload": coach_upload,
     })
 
 
@@ -187,8 +326,13 @@ def job_detail(request, job_uuid):
     job = get_object_or_404(ImportJob, uuid=job_uuid)
     if job.user_id != request.user.id and not can_view_client(request.user, job.user):
         raise Http404
+    parsed_rows = job.parsed_data or []
+    page_obj = Paginator(parsed_rows, 100).get_page(request.GET.get("page"))
     return render(request, "imports/job_detail.html", {
-        "job": job, "rows": (job.parsed_data or [])[:100],
+        "job": job,
+        "rows": page_obj.object_list,
+        "page_obj": page_obj,
+        "total": len(parsed_rows),
     })
 
 
@@ -227,8 +371,9 @@ def download_pdf(request, file_uuid):
         storage.open(reference.file.name, "rb"), content_type="application/pdf"
     )
     response["Content-Disposition"] = (
-        f'inline; filename="{sanitize_filename(reference.original_filename)}"'
+        f'attachment; filename="{sanitize_filename(reference.original_filename)}"'
     )
+    response["Cache-Control"] = "private, no-store"
     return response
 
 
@@ -244,6 +389,7 @@ def download_import_file(request, job_uuid):
     response["Content-Disposition"] = (
         f'attachment; filename="{sanitize_filename(job.original_filename)}"'
     )
+    response["Cache-Control"] = "private, no-store"
     return response
 
 

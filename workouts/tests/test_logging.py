@@ -82,6 +82,16 @@ class LoggingFlowTests(TestCase):
         response = self.client.get(reverse("workouts:logger", args=[session.uuid]))
         self.assertContains(response, 'value="102.5"')
 
+    def test_blank_per_set_target_stays_blank_instead_of_falling_back(self):
+        self.prescription.set_weight_targets_lb = [95, None, 110]
+        self.prescription.save(update_fields=["set_weight_targets_lb"])
+        session = self._start_session()
+
+        response = self.client.get(reverse("workouts:logger", args=[session.uuid]))
+
+        weights = [row["weight"] for row in response.context["cards"][0]["rows"]]
+        self.assertEqual(weights, [95, None, 110])
+
     def test_logger_calculates_percentage_weight_from_max(self):
         from datetime import date
         from progress.models import LiftMax
@@ -99,6 +109,21 @@ class LoggingFlowTests(TestCase):
         session = self._start_session()
         response = self.client.get(reverse("workouts:logger", args=[session.uuid]))
         self.assertContains(response, 'value="160.0"')
+
+    def test_strength_rep_text_still_uses_reps_and_effort_inputs(self):
+        self.prescription.target_rep_min = None
+        self.prescription.target_rep_max = None
+        self.prescription.target_reps_text = "10 each"
+        self.prescription.save(update_fields=[
+            "target_rep_min", "target_rep_max", "target_reps_text",
+        ])
+        session = self._start_session()
+
+        response = self.client.get(reverse("workouts:logger", args=[session.uuid]))
+
+        self.assertContains(response, 'data-field="reps"')
+        self.assertContains(response, 'data-field="rir"')
+        self.assertNotContains(response, 'aria-label="Set 1 distance (yards)"')
 
     def test_autosave_upserts_single_row(self):
         session = self._start_session()
